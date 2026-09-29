@@ -132,6 +132,9 @@ async function getConfig(env) {
       TIMEZONE: config.TIMEZONE || 'UTC', // 新增时区字段
       NOTIFICATION_HOURS: Array.isArray(config.NOTIFICATION_HOURS) ? config.NOTIFICATION_HOURS : [],
       THIRD_PARTY_API_TOKEN: config.THIRD_PARTY_API_TOKEN || '',
+      WEBDAV_URL: config.WEBDAV_URL || '',
+      WEBDAV_USERNAME: config.WEBDAV_USERNAME || '',
+      WEBDAV_PASSWORD: config.WEBDAV_PASSWORD || '',
       EXCHANGE_RATES: { ...DEFAULT_EXCHANGE_RATES, ...(config.EXCHANGE_RATES || {}) }
     };
 
@@ -145,6 +148,9 @@ async function getConfig(env) {
       ADMIN_USERNAME: 'admin',
       ADMIN_PASSWORD: 'password',
       JWT_SECRET: defaultJwtSecret,
+      WEBDAV_URL: '',
+      WEBDAV_USERNAME: '',
+      WEBDAV_PASSWORD: '',
       TG_BOT_TOKEN: '',
       TG_CHAT_ID: '',
       NOTIFYX_API_KEY: '',
