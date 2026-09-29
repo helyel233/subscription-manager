@@ -99,6 +99,92 @@ function generateImportId() {
   return Date.now().toString() + '_' + Math.random().toString(36).slice(2, 11);
 }
 
+// 将导入的订阅列表写入 KV：merge 模式跳过重复 ID，replace 模式清空现有数据后导入
+async function applyImportedSubscriptions(env, importedSubscriptions, mode) {
+  if (mode === 'replace') {
+    const existing = await getAllSubscriptions(env);
+    await Promise.all(existing.map(sub => deleteSubscriptionKey(sub.id, env)));
+  }
+
+  const existingSubscriptions = mode === 'merge' ? await getAllSubscriptions(env) : [];
+  const existingIds = new Set(existingSubscriptions.map(sub => sub.id));
+
+  let importedCount = 0;
+  let skippedCount = 0;
+  for (const subscription of importedSubscriptions) {
+    if (!subscription || !subscription.name || !subscription.expiryDate) {
+      skippedCount += 1;
+      continue;
+    }
+
+    // 缺失 ID 或与现有数据冲突时重新生成，避免覆盖
+    if (!subscription.id || existingIds.has(subscription.id)) {
+      if (subscription.id && existingIds.has(subscription.id) && mode === 'merge') {
+        skippedCount += 1;
+        continue;
+      }
+      subscription.id = generateImportId();
+    }
+
+    await saveSubscription(subscription, env);
+    existingIds.add(subscription.id);
+    importedCount += 1;
+  }
+
+  return { importedCount, skippedCount };
+}
+
+// ==================== WebDAV 云备份 ====================
+
+// 规范化 WebDAV 目录地址：去除结尾斜杠
+export function normalizeWebdavUrl(url) {
+  return (url || '').trim().replace(/\/+$/, '');
+}
+
+// 从配置中提取 WebDAV 连接信息，未配置地址时返回 null
+function getWebdavConfig(config) {
+  const baseUrl = normalizeWebdavUrl(config.WEBDAV_URL);
+  if (!baseUrl) {
+    return null;
+  }
+  const raw = (config.WEBDAV_USERNAME || '') + ':' + (config.WEBDAV_PASSWORD || '');
+  return { baseUrl, authHeader: 'Basic ' + btoa(unescape(encodeURIComponent(raw))) };
+}
+
+// 确保 WebDAV 目录存在（目录已存在时服务器返回 405，忽略即可）
+async function ensureWebdavDirectory(webdav) {
+  try {
+    await fetch(webdav.baseUrl + '/', {
+      method: 'MKCOL',
+      headers: { Authorization: webdav.authHeader }
+    });
+  } catch (error) {
+    console.error('[WebDAV] 创建目录失败:', error);
+  }
+}
+
+// 解析 PROPFIND（Depth: 1）响应中的备份文件列表
+export function parseWebdavPropfindXml(xml) {
+  const results = [];
+  const blocks = xml.match(/<(?:\w+:)?response\b[\s\S]*?<\/(?:\w+:)?response>/g) || [];
+  for (const block of blocks) {
+    const href = ((block.match(/<(?:\w+:)?href\b[^>]*>([\s\S]*?)<\/(?:\w+:)?href>/) || [])[1] || '').trim();
+    const lastModified = ((block.match(/<(?:\w+:)?getlastmodified\b[^>]*>([\s\S]*?)<\/(?:\w+:)?getlastmodified>/) || [])[1] || '').trim();
+    const size = ((block.match(/<(?:\w+:)?getcontentlength\b[^>]*>([\s\S]*?)<\/(?:\w+:)?getcontentlength>/) || [])[1] || '').trim();
+    const rawName = href.split('/').filter(Boolean).pop() || '';
+    let name = rawName;
+    try {
+      name = decodeURIComponent(rawName);
+    } catch (error) {
+      // 名称含非法编码时保留原值
+    }
+    if (name.toLowerCase().endsWith('.json')) {
+      results.push({ name, size: Number(size) || 0, lastModified });
+    }
+  }
+  return results;
+}
+
 const api = {
   async handleRequest(request, env, ctx) {
     const url = new URL(request.url);
@@ -214,6 +300,9 @@ const api = {
             ENABLED_NOTIFIERS: newConfig.ENABLED_NOTIFIERS || ['notifyx'],
             TIMEZONE: newConfig.TIMEZONE || config.TIMEZONE || 'UTC',
             THIRD_PARTY_API_TOKEN: newConfig.THIRD_PARTY_API_TOKEN || '',
+                        WEBDAV_URL: newConfig.WEBDAV_URL || '',
+                        WEBDAV_USERNAME: newConfig.WEBDAV_USERNAME || '',
+                        WEBDAV_PASSWORD: newConfig.WEBDAV_PASSWORD || '',
             EXCHANGE_RATES: parseExchangeRates(
               newConfig.EXCHANGE_RATES !== undefined ? newConfig.EXCHANGE_RATES : config.EXCHANGE_RATES
             )
@@ -457,35 +546,7 @@ const api = {
           );
         }
 
-        if (mode === 'replace') {
-          const existing = await getAllSubscriptions(env);
-          await Promise.all(existing.map(sub => deleteSubscriptionKey(sub.id, env)));
-        }
-
-        const existingSubscriptions = mode === 'merge' ? await getAllSubscriptions(env) : [];
-        const existingIds = new Set(existingSubscriptions.map(sub => sub.id));
-
-        let importedCount = 0;
-        let skippedCount = 0;
-        for (const subscription of importedSubscriptions) {
-          if (!subscription || !subscription.name || !subscription.expiryDate) {
-            skippedCount += 1;
-            continue;
-          }
-
-          // 缺失 ID 或与现有数据冲突时重新生成，避免覆盖
-          if (!subscription.id || existingIds.has(subscription.id)) {
-            if (subscription.id && existingIds.has(subscription.id) && mode === 'merge') {
-              skippedCount += 1;
-              continue;
-            }
-            subscription.id = generateImportId();
-          }
-
-          await saveSubscription(subscription, env);
-          existingIds.add(subscription.id);
-          importedCount += 1;
-        }
+        const { importedCount, skippedCount } = await applyImportedSubscriptions(env, importedSubscriptions, mode);
 
         return new Response(
           JSON.stringify({
@@ -498,6 +559,151 @@ const api = {
         console.error('导入数据失败:', error);
         return new Response(
           JSON.stringify({ success: false, message: '导入数据失败: ' + error.message }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // WebDAV 云备份：将当前订阅与脱敏配置上传到远端 WebDAV 目录
+    if (path === '/webdav/backup' && method === 'POST') {
+      try {
+        const webdav = getWebdavConfig(config);
+        if (!webdav) {
+          return new Response(
+            JSON.stringify({ success: false, message: '请先填写 WebDAV 地址并保存配置' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const subscriptions = await getAllSubscriptions(env);
+        const { JWT_SECRET, ADMIN_PASSWORD, ...safeConfig } = config;
+        const backupData = JSON.stringify({
+          version: 2,
+          exportedAt: new Date().toISOString(),
+          subscriptions,
+          config: safeConfig
+        });
+
+        await ensureWebdavDirectory(webdav);
+
+        const filename = 'substracker-backup-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.json';
+        const response = await fetch(webdav.baseUrl + '/' + filename, {
+          method: 'PUT',
+          headers: {
+            Authorization: webdav.authHeader,
+            'Content-Type': 'application/json; charset=utf-8'
+          },
+          body: backupData
+        });
+
+        if (!response.ok) {
+          throw new Error('WebDAV 服务器返回状态码 ' + response.status + '，请检查地址与账号');
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, message: '备份成功：' + filename, file: filename }),
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+      } catch (error) {
+        console.error('WebDAV 备份失败:', error);
+        return new Response(
+          JSON.stringify({ success: false, message: 'WebDAV 备份失败: ' + error.message }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // WebDAV 云备份：列出远端备份文件
+    if (path === '/webdav/list' && method === 'GET') {
+      try {
+        const webdav = getWebdavConfig(config);
+        if (!webdav) {
+          return new Response(
+            JSON.stringify({ success: false, message: '请先填写 WebDAV 地址并保存配置' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const response = await fetch(webdav.baseUrl + '/', {
+          method: 'PROPFIND',
+          headers: {
+            Authorization: webdav.authHeader,
+            Depth: '1'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('WebDAV 服务器返回状态码 ' + response.status + '，请检查地址与账号');
+        }
+
+        const xml = await response.text();
+        const files = parseWebdavPropfindXml(xml)
+          .sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
+
+        return new Response(
+          JSON.stringify({ success: true, data: files }),
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+      } catch (error) {
+        console.error('获取 WebDAV 备份列表失败:', error);
+        return new Response(
+          JSON.stringify({ success: false, message: '获取备份列表失败: ' + error.message }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // WebDAV 云备份：从远端备份文件恢复数据
+    if (path === '/webdav/restore' && method === 'POST') {
+      try {
+        const webdav = getWebdavConfig(config);
+        if (!webdav) {
+          return new Response(
+            JSON.stringify({ success: false, message: '请先填写 WebDAV 地址并保存配置' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const body = await request.json();
+        const filename = (body.file || '').trim();
+        if (!filename || filename.includes('..') || filename.includes('/')) {
+          return new Response(
+            JSON.stringify({ success: false, message: '非法的备份文件名' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        const mode = body.mode === 'replace' ? 'replace' : 'merge';
+
+        const response = await fetch(webdav.baseUrl + '/' + encodeURIComponent(filename), {
+          method: 'GET',
+          headers: { Authorization: webdav.authHeader }
+        });
+        if (!response.ok) {
+          throw new Error('下载备份失败，WebDAV 服务器返回状态码 ' + response.status);
+        }
+
+        const backupData = await response.json();
+        const importedSubscriptions = Array.isArray(backupData.subscriptions) ? backupData.subscriptions : [];
+        if (importedSubscriptions.length === 0) {
+          return new Response(
+            JSON.stringify({ success: false, message: '备份文件中未找到订阅数据' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const { importedCount, skippedCount } = await applyImportedSubscriptions(env, importedSubscriptions, mode);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: `恢复完成：成功 ${importedCount} 条，跳过 ${skippedCount} 条（模式：${mode === 'replace' ? '替换' : '合并'}）`
+          }),
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+      } catch (error) {
+        console.error('WebDAV 恢复失败:', error);
+        return new Response(
+          JSON.stringify({ success: false, message: 'WebDAV 恢复失败: ' + error.message }),
           { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
       }

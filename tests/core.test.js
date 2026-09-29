@@ -6,6 +6,7 @@ import { getCurrentTimeInTimezone, getTimezoneDateParts, formatTimeInTimezone } 
 import { convertToCNY, DEFAULT_EXCHANGE_RATES } from '../src/dashboard.js';
 import { buildCalendarICS } from '../src/ics.js';
 import { hashPassword, verifyPassword, isPasswordHash, generateJWT, verifyJWT } from '../src/auth.js';
+import { parseWebdavPropfindXml, normalizeWebdavUrl } from '../src/api.js';
 
 // ==================== 农历转换 ====================
 
@@ -168,4 +169,27 @@ test('verifyJWT：签名错误被拒绝', async () => {
   const token = await generateJWT('admin', 'test-secret');
   const tampered = token.slice(0, -4) + '0000';
   assert.equal(await verifyJWT(tampered, 'test-secret'), null);
+});
+
+// ==================== WebDAV 云备份 ====================
+
+test('normalizeWebdavUrl：去除结尾斜杠', () => {
+  assert.equal(normalizeWebdavUrl('https://dav.example.com/dav/backup/'), 'https://dav.example.com/dav/backup');
+  assert.equal(normalizeWebdavUrl('https://dav.example.com/dav/backup///'), 'https://dav.example.com/dav/backup');
+  assert.equal(normalizeWebdavUrl('  '), '');
+});
+
+test('parseWebdavPropfindXml：仅提取 JSON 文件，忽略目录与非 JSON', () => {
+  const xml = '<?xml version="1.0"?>' +
+    '<D:multistatus>' +
+    '<D:response><D:href>/dav/backup/</D:href><D:getlastmodified>Tue, 29 Sep 2026 10:00:00 GMT</D:getlastmodified></D:response>' +
+    '<D:response><D:href>/dav/backup/substracker-backup-2026-09-29T10-00-00.json</D:href>' +
+    '<D:getlastmodified>Tue, 29 Sep 2026 10:00:00 GMT</D:getlastmodified><D:getcontentlength>1234</D:getcontentlength></D:response>' +
+    '<D:response><D:href>/dav/backup/readme.txt</D:href><D:getcontentlength>10</D:getcontentlength></D:response>' +
+    '</D:multistatus>';
+  const files = parseWebdavPropfindXml(xml);
+  assert.equal(files.length, 1);
+  assert.equal(files[0].name, 'substracker-backup-2026-09-29T10-00-00.json');
+  assert.equal(files[0].size, 1234);
+  assert.equal(files[0].lastModified, 'Tue, 29 Sep 2026 10:00:00 GMT');
 });

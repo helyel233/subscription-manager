@@ -20,6 +20,10 @@ const DARK_MODE_SNIPPET = `
   html.dark .border-gray-100, html.dark .border-gray-200, html.dark .border-gray-300 { border-color: #374151 !important; }
   html.dark .responsive-table td:before { color: #9ca3af !important; }
   html.dark .stat-card { background-color: #1f2937 !important; }
+  html.dark .config-section { border-color: #374151 !important; }
+  html.dark .config-section.active { background-color: #1f2937 !important; border-color: #6366f1 !important; }
+  html.dark .config-section.inactive { background-color: #111827 !important; }
+  html.dark .readonly-input { background-color: #111827 !important; border-color: #374151 !important; color: #9ca3af !important; }
 </style>
 <script>
   (function () {
@@ -3582,6 +3586,34 @@ ${DARK_MODE_SNIPPET}</head>
               </div>
             </div>
           </div>
+          <div class="bg-gray-50 border border-gray-200 rounded-md p-4 mb-6">
+            <h4 class="text-sm font-medium text-gray-900 mb-2"><i class="fas fa-cloud mr-1"></i>WebDAV 云备份</h4>
+            <p class="text-xs text-gray-600 mb-3">将备份上传到你的 WebDAV 网盘（如坚果云、Alist、Nextcloud 等）。填写目录地址与账号后先点击上方「保存配置」，再执行备份/查看。</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+              <input type="text" id="webdavUrl" placeholder="WebDAV 目录地址，如 https://dav.jianguoyun.com/dav/backup/"
+                class="w-full min-w-0 text-sm border border-gray-300 rounded-md px-2 py-1.5">
+              <input type="text" id="webdavUsername" placeholder="WebDAV 用户名"
+                class="w-full min-w-0 text-sm border border-gray-300 rounded-md px-2 py-1.5">
+              <input type="password" id="webdavPassword" placeholder="WebDAV 密码 / 应用密码"
+                class="w-full min-w-0 text-sm border border-gray-300 rounded-md px-2 py-1.5">
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <select id="webdavRestoreMode" class="text-sm border border-gray-300 rounded-md px-2 py-1.5 bg-white">
+                <option value="merge">合并（跳过重复）</option>
+                <option value="replace">替换（清空现有）</option>
+              </select>
+              <button type="button" id="webdavBackupBtn" class="btn-info text-white px-4 py-1.5 rounded-md text-sm font-medium whitespace-nowrap">
+                <i class="fas fa-cloud-upload-alt mr-1"></i>立即备份
+              </button>
+              <button type="button" id="webdavListBtn" class="btn-secondary text-white px-4 py-1.5 rounded-md text-sm font-medium whitespace-nowrap">
+                <i class="fas fa-sync-alt mr-1"></i>查看远端备份
+              </button>
+            </div>
+            <div id="webdavList" class="mt-3 hidden">
+              <div class="text-xs text-gray-500 mb-1">远端备份文件：</div>
+              <div id="webdavListItems" class="space-y-1 max-h-60 overflow-y-auto"></div>
+            </div>
+          </div>
           <div class="mb-6">
             <label class="block text-sm font-medium text-gray-700">iCal 日历订阅地址</label>
             <div class="mt-1 flex flex-col sm:flex-row gap-2">
@@ -3914,6 +3946,11 @@ ${DARK_MODE_SNIPPET}</head>
         // 加载农历显示设置
         document.getElementById('showLunarGlobal').checked = config.SHOW_LUNAR === true;
 
+        // 加载 WebDAV 备份配置
+        document.getElementById('webdavUrl').value = config.WEBDAV_URL || '';
+        document.getElementById('webdavUsername').value = config.WEBDAV_USERNAME || '';
+        document.getElementById('webdavPassword').value = config.WEBDAV_PASSWORD || '';
+
         // 动态生成时区选项，并设置保存的值
         generateTimezoneOptions(config.TIMEZONE || 'UTC');
 
@@ -4051,6 +4088,9 @@ ${DARK_MODE_SNIPPET}</head>
         ENABLED_NOTIFIERS: enabledNotifiers,
         TIMEZONE: document.getElementById('timezone').value.trim(),
         THIRD_PARTY_API_TOKEN: document.getElementById('thirdPartyToken').value.trim(),
+        WEBDAV_URL: document.getElementById('webdavUrl').value.trim(),
+        WEBDAV_USERNAME: document.getElementById('webdavUsername').value.trim(),
+        WEBDAV_PASSWORD: document.getElementById('webdavPassword').value,
         // 汇率配置直接传递原始 JSON 文本，由后端统一解析校验
         EXCHANGE_RATES: document.getElementById('exchangeRates') ? document.getElementById('exchangeRates').value.trim() : '',
         // 前端先行整理通知小时列表，后端仍会再次校验
@@ -4329,6 +4369,114 @@ ${DARK_MODE_SNIPPET}</head>
           fileInput.value = '';
         }
       });
+    }
+
+    // WebDAV 云备份操作
+    const webdavBackupBtn = document.getElementById('webdavBackupBtn');
+    if (webdavBackupBtn) {
+      webdavBackupBtn.addEventListener('click', async () => {
+        if (!document.getElementById('webdavUrl').value.trim()) {
+          showToast('请先填写 WebDAV 地址并保存配置', 'warning');
+          return;
+        }
+        const originalContent = webdavBackupBtn.innerHTML;
+        webdavBackupBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>备份中...';
+        webdavBackupBtn.disabled = true;
+        try {
+          const response = await fetch('/api/webdav/backup', { method: 'POST' });
+          const result = await response.json();
+          if (result.success) {
+            showToast(result.message || '备份成功', 'success');
+            refreshWebdavList();
+          } else {
+            showToast(result.message || '备份失败', 'error');
+          }
+        } catch (error) {
+          console.error('WebDAV 备份失败:', error);
+          showToast('WebDAV 备份失败，请检查网络与配置', 'error');
+        } finally {
+          webdavBackupBtn.innerHTML = originalContent;
+          webdavBackupBtn.disabled = false;
+        }
+      });
+    }
+
+    const webdavListBtn = document.getElementById('webdavListBtn');
+    if (webdavListBtn) {
+      webdavListBtn.addEventListener('click', refreshWebdavList);
+    }
+
+    // 拉取并渲染远端备份文件列表
+    async function refreshWebdavList() {
+      const listContainer = document.getElementById('webdavList');
+      const listItems = document.getElementById('webdavListItems');
+      if (!listContainer || !listItems) return;
+      try {
+        const response = await fetch('/api/webdav/list');
+        const result = await response.json();
+        if (!result.success) {
+          showToast(result.message || '获取备份列表失败', 'error');
+          return;
+        }
+        const files = result.data || [];
+        listContainer.classList.remove('hidden');
+        if (files.length === 0) {
+          listItems.innerHTML = '<div class="text-xs text-gray-500">远端暂无备份文件</div>';
+          return;
+        }
+        listItems.innerHTML = '';
+        files.forEach(file => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between gap-2 bg-white border border-gray-200 rounded-md px-2 py-1.5';
+          const info = document.createElement('div');
+          info.className = 'min-w-0 flex-1';
+          const displayTime = file.lastModified ? new Date(file.lastModified).toLocaleString() : '未知时间';
+          const displaySize = file.size ? (file.size / 1024).toFixed(1) + ' KB' : '未知大小';
+          info.innerHTML = '<div class="text-xs text-gray-800 truncate"></div>' +
+            '<div class="text-xs text-gray-500"></div>';
+          info.firstChild.textContent = file.name;
+          info.lastChild.textContent = displayTime + ' · ' + displaySize;
+          const restoreBtn = document.createElement('button');
+          restoreBtn.type = 'button';
+          restoreBtn.className = 'btn-secondary text-white px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap';
+          restoreBtn.textContent = '恢复';
+          restoreBtn.addEventListener('click', () => restoreWebdavBackup(file.name));
+          row.appendChild(info);
+          row.appendChild(restoreBtn);
+          listItems.appendChild(row);
+        });
+      } catch (error) {
+        console.error('获取 WebDAV 备份列表失败:', error);
+        showToast('获取备份列表失败，请检查 WebDAV 配置', 'error');
+      }
+    }
+
+    // 从远端备份文件恢复数据
+    async function restoreWebdavBackup(filename) {
+      const modeSelect = document.getElementById('webdavRestoreMode');
+      const mode = modeSelect ? modeSelect.value : 'merge';
+      if (mode === 'replace' && !confirm('替换模式将清空当前所有订阅数据，确定继续吗？')) {
+        return;
+      }
+      if (!confirm('确认从远端备份「' + filename + '」恢复数据？（' + (mode === 'replace' ? '替换' : '合并') + '模式）')) {
+        return;
+      }
+      try {
+        const response = await fetch('/api/webdav/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: filename, mode })
+        });
+        const result = await response.json();
+        if (result.success) {
+          showToast(result.message || '恢复成功', 'success');
+        } else {
+          showToast(result.message || '恢复失败', 'error');
+        }
+      } catch (error) {
+        console.error('WebDAV 恢复失败:', error);
+        showToast('恢复失败，请稍后再试', 'error');
+      }
     }
 
     // 复制 iCal 订阅地址
