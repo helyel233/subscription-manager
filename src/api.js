@@ -709,6 +709,49 @@ const api = {
       }
     }
 
+    // WebDAV 云备份：删除远端备份文件
+    if (path === '/webdav/delete' && method === 'POST') {
+      try {
+        const webdav = getWebdavConfig(config);
+        if (!webdav) {
+          return new Response(
+            JSON.stringify({ success: false, message: '请先填写 WebDAV 地址并保存配置' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const body = await request.json();
+        const filename = (body.file || '').trim();
+        if (!filename || filename.includes('..') || filename.includes('/')) {
+          return new Response(
+            JSON.stringify({ success: false, message: '非法的备份文件名' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const response = await fetch(webdav.baseUrl + '/' + encodeURIComponent(filename), {
+          method: 'DELETE',
+          headers: { Authorization: webdav.authHeader }
+        });
+
+        // 404 视为已删除，同样返回成功
+        if (!response.ok && response.status !== 404) {
+          throw new Error('WebDAV 服务器返回状态码 ' + response.status);
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, message: '已删除备份：' + filename }),
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+      } catch (error) {
+        console.error('WebDAV 删除备份失败:', error);
+        return new Response(
+          JSON.stringify({ success: false, message: '删除备份失败: ' + error.message }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     if (path === '/subscriptions') {
       if (method === 'GET') {
         const subscriptions = await getAllSubscriptions(env);

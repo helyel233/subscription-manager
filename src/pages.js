@@ -24,6 +24,8 @@ const DARK_MODE_SNIPPET = `
   html.dark .config-section.active { background-color: #1f2937 !important; border-color: #6366f1 !important; }
   html.dark .config-section.inactive { background-color: #111827 !important; }
   html.dark .readonly-input { background-color: #111827 !important; border-color: #374151 !important; color: #9ca3af !important; }
+  html.dark .login-container { background: linear-gradient(135deg, #111827 0%, #1e1b4b 55%, #3730a3 100%) !important; }
+  html.dark .login-box { background-color: #1f2937 !important; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important; }
 </style>
 <script>
   (function () {
@@ -4441,13 +4443,43 @@ ${DARK_MODE_SNIPPET}</head>
           restoreBtn.className = 'btn-secondary text-white px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap';
           restoreBtn.textContent = '恢复';
           restoreBtn.addEventListener('click', () => restoreWebdavBackup(file.name));
+          const deleteBtn = document.createElement('button');
+          deleteBtn.type = 'button';
+          deleteBtn.className = 'btn-danger text-white px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap';
+          deleteBtn.textContent = '删除';
+          deleteBtn.addEventListener('click', () => deleteWebdavBackup(file.name));
           row.appendChild(info);
           row.appendChild(restoreBtn);
+          row.appendChild(deleteBtn);
           listItems.appendChild(row);
         });
       } catch (error) {
         console.error('获取 WebDAV 备份列表失败:', error);
         showToast('获取备份列表失败，请检查 WebDAV 配置', 'error');
+      }
+    }
+
+    // 删除远端备份文件
+    async function deleteWebdavBackup(filename) {
+      if (!confirm('确认删除远端备份「' + filename + '」？此操作不可恢复。')) {
+        return;
+      }
+      try {
+        const response = await fetch('/api/webdav/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: filename })
+        });
+        const result = await response.json();
+        if (result.success) {
+          showToast(result.message || '删除成功', 'success');
+          refreshWebdavList();
+        } else {
+          showToast(result.message || '删除失败', 'error');
+        }
+      } catch (error) {
+        console.error('WebDAV 删除失败:', error);
+        showToast('删除失败，请稍后再试', 'error');
       }
     }
 
