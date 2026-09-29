@@ -1,3 +1,37 @@
+// 暗黑模式公共样式与初始化脚本（所有页面共用，偏好存储在浏览器 localStorage）
+const DARK_MODE_SNIPPET = `
+<style id="darkModeStyle">
+  html.dark body { background-color: #111827 !important; color: #e5e7eb !important; }
+  html.dark .bg-white { background-color: #1f2937 !important; }
+  html.dark .bg-gray-50 { background-color: #111827 !important; }
+  html.dark .bg-gray-100 { background-color: #1f2937 !important; }
+  html.dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.15) !important; }
+  html.dark .hover\\:bg-gray-50:hover { background-color: #1f2937 !important; }
+  html.dark .text-gray-900, html.dark .text-gray-800, html.dark .text-gray-700 { color: #f3f4f6 !important; }
+  html.dark .text-gray-600, html.dark .text-gray-500, html.dark .text-gray-400 { color: #9ca3af !important; }
+  html.dark .text-indigo-900 { color: #c7d2fe !important; }
+  html.dark .text-indigo-700, html.dark .text-indigo-600 { color: #a5b4fc !important; }
+  html.dark .text-purple-600 { color: #c4b5fd !important; }
+  html.dark .text-red-500 { color: #f87171 !important; }
+  html.dark input[type="text"], html.dark input[type="password"], html.dark input[type="url"],
+  html.dark input[type="number"], html.dark input[type="date"], html.dark select, html.dark textarea {
+    background-color: #111827 !important; border-color: #374151 !important; color: #e5e7eb !important;
+  }
+  html.dark .border-gray-100, html.dark .border-gray-200, html.dark .border-gray-300 { border-color: #374151 !important; }
+  html.dark .responsive-table td:before { color: #9ca3af !important; }
+  html.dark .stat-card { background-color: #1f2937 !important; }
+</style>
+<script>
+  (function () {
+    try {
+      if (localStorage.getItem('darkMode') === 'true') {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) { /* localStorage 不可用时忽略 */ }
+  })();
+</script>
+`;
+
 const loginPage = `
 <!DOCTYPE html>
 <html>
@@ -34,7 +68,8 @@ const loginPage = `
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
     }
   </style>
-</head>
+${DARK_MODE_SNIPPET}</head>
+
 <body class="login-container flex items-center justify-center">
   <div class="login-box p-8 rounded-xl w-full max-w-md">
     <div class="text-center mb-8">
@@ -419,7 +454,8 @@ const adminPage = `
     .toast.info { background-color: #3b82f6; }
     .toast.warning { background-color: #f59e0b; }
   </style>
-</head>
+${DARK_MODE_SNIPPET}</head>
+
 <body class="bg-gray-100 min-h-screen">
   <div id="toast-container"></div>
 
@@ -3407,7 +3443,8 @@ const configPage = `
       opacity: 0.7; 
     }
   </style>
-</head>
+${DARK_MODE_SNIPPET}</head>
+
 <body class="bg-gray-100 min-h-screen">
   <div id="toast-container"></div>
 
@@ -3468,6 +3505,13 @@ const configPage = `
             </label>
             <p class="mt-1 text-sm text-gray-500">控制是否在通知消息中包含农历日期信息</p>
           </div>
+          <div class="mb-6">
+            <label class="inline-flex items-center">
+              <input type="checkbox" id="darkModeToggle" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+              <span class="ml-2 text-sm text-gray-700">启用暗黑模式</span>
+            </label>
+            <p class="mt-1 text-sm text-gray-500">切换深色界面主题，偏好保存在本地浏览器中，对所有页面生效</p>
+          </div>
         </div>
 
 
@@ -3523,15 +3567,18 @@ const configPage = `
             <div class="bg-gray-50 border border-gray-200 rounded-md p-4">
               <h4 class="text-sm font-medium text-gray-900 mb-2"><i class="fas fa-upload mr-1"></i>导入恢复</h4>
               <p class="text-xs text-gray-600 mb-3">从导出的 JSON 备份文件恢复订阅数据。</p>
-              <div class="flex flex-col sm:flex-row gap-2">
-                <input type="file" id="importFile" accept=".json,application/json" class="flex-1 text-sm text-gray-600 border border-gray-300 rounded-md px-2 py-1">
-                <select id="importMode" class="text-sm border border-gray-300 rounded-md px-2 py-1">
-                  <option value="merge">合并（跳过重复）</option>
-                  <option value="replace">替换（清空现有）</option>
-                </select>
-                <button type="button" id="importDataBtn" class="btn-info text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap">
-                  导入
-                </button>
+              <div class="flex flex-col gap-2">
+                <input type="file" id="importFile" accept=".json,application/json"
+                  class="w-full min-w-0 text-xs text-gray-600 border border-gray-300 rounded-md px-2 py-1.5">
+                <div class="flex flex-wrap gap-2">
+                  <select id="importMode" class="flex-1 min-w-0 text-sm border border-gray-300 rounded-md px-2 py-1.5 bg-white">
+                    <option value="merge">合并（跳过重复）</option>
+                    <option value="replace">替换（清空现有）</option>
+                  </select>
+                  <button type="button" id="importDataBtn" class="btn-info text-white px-4 py-1.5 rounded-md text-sm font-medium whitespace-nowrap">
+                    导入
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -4305,6 +4352,18 @@ const configPage = `
       });
     }
 
+    // 暗黑模式开关：立即生效并保存到 localStorage，所有页面共用
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    if (darkModeToggle) {
+      darkModeToggle.checked = localStorage.getItem('darkMode') === 'true';
+      darkModeToggle.addEventListener('change', () => {
+        const enabled = darkModeToggle.checked;
+        localStorage.setItem('darkMode', enabled ? 'true' : 'false');
+        document.documentElement.classList.toggle('dark', enabled);
+        showToast(enabled ? '已启用暗黑模式' : '已切换回浅色模式', 'success');
+      });
+    }
+
     window.addEventListener('load', loadConfig);
     
     // 全局时区配置
@@ -4465,7 +4524,8 @@ function dashboardPage() {
     .loading-skeleton{background:linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 50%,#f3f4f6 75%);background-size:200% 100%;animation:loading 1.5s infinite;height:100px;border-radius:8px}
     @keyframes loading{0%{background-position:200% 0}100%{background-position:-200% 0}}
   </style>
-</head>
+${DARK_MODE_SNIPPET}</head>
+
 <body class="bg-gray-50">
   <nav class="bg-white shadow-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
