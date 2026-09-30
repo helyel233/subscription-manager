@@ -133,6 +133,7 @@ async function getConfig(env) {
       NOTIFICATION_HOURS: Array.isArray(config.NOTIFICATION_HOURS) ? config.NOTIFICATION_HOURS : [],
       THIRD_PARTY_API_TOKEN: config.THIRD_PARTY_API_TOKEN || '',
       WEBDAV_URL: config.WEBDAV_URL || '',
+      WEBDAV_DIR: config.WEBDAV_DIR || 'SubsTracker',
       WEBDAV_USERNAME: config.WEBDAV_USERNAME || '',
       WEBDAV_PASSWORD: config.WEBDAV_PASSWORD || '',
       EXCHANGE_RATES: { ...DEFAULT_EXCHANGE_RATES, ...(config.EXCHANGE_RATES || {}) }
@@ -149,6 +150,7 @@ async function getConfig(env) {
       ADMIN_PASSWORD: 'password',
       JWT_SECRET: defaultJwtSecret,
       WEBDAV_URL: '',
+      WEBDAV_DIR: 'SubsTracker',
       WEBDAV_USERNAME: '',
       WEBDAV_PASSWORD: '',
       TG_BOT_TOKEN: '',

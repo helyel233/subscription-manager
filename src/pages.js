@@ -3590,9 +3590,11 @@ ${DARK_MODE_SNIPPET}</head>
           </div>
           <div class="bg-gray-50 border border-gray-200 rounded-md p-4 mb-6">
             <h4 class="text-sm font-medium text-gray-900 mb-2"><i class="fas fa-cloud mr-1"></i>WebDAV 云备份</h4>
-            <p class="text-xs text-gray-600 mb-3">将备份上传到你的 WebDAV 网盘（如坚果云、Alist、Nextcloud 等）。填写目录地址与账号后先点击上方「保存配置」，再执行备份/查看。</p>
+            <p class="text-xs text-gray-600 mb-3">将备份上传到你的 WebDAV 网盘（如坚果云、Alist、Nextcloud 等）。填写目录地址与账号后先点击上方「保存配置」，再执行备份/查看。备份文件会统一存放在该目录下的子目录中（目录名可自定义，默认 <code>SubsTracker</code>，自动创建）。</p>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
               <input type="text" id="webdavUrl" placeholder="WebDAV 目录地址，如 https://dav.jianguoyun.com/dav/backup/"
+                class="w-full min-w-0 text-sm border border-gray-300 rounded-md px-2 py-1.5">
+              <input type="text" id="webdavDir" placeholder="备份子目录名，默认 SubsTracker"
                 class="w-full min-w-0 text-sm border border-gray-300 rounded-md px-2 py-1.5">
               <input type="text" id="webdavUsername" placeholder="WebDAV 用户名"
                 class="w-full min-w-0 text-sm border border-gray-300 rounded-md px-2 py-1.5">
@@ -3950,6 +3952,7 @@ ${DARK_MODE_SNIPPET}</head>
 
         // 加载 WebDAV 备份配置
         document.getElementById('webdavUrl').value = config.WEBDAV_URL || '';
+        document.getElementById('webdavDir').value = config.WEBDAV_DIR || 'SubsTracker';
         document.getElementById('webdavUsername').value = config.WEBDAV_USERNAME || '';
         document.getElementById('webdavPassword').value = config.WEBDAV_PASSWORD || '';
 
@@ -4091,6 +4094,7 @@ ${DARK_MODE_SNIPPET}</head>
         TIMEZONE: document.getElementById('timezone').value.trim(),
         THIRD_PARTY_API_TOKEN: document.getElementById('thirdPartyToken').value.trim(),
         WEBDAV_URL: document.getElementById('webdavUrl').value.trim(),
+        WEBDAV_DIR: document.getElementById('webdavDir').value.trim(),
         WEBDAV_USERNAME: document.getElementById('webdavUsername').value.trim(),
         WEBDAV_PASSWORD: document.getElementById('webdavPassword').value,
         // 汇率配置直接传递原始 JSON 文本，由后端统一解析校验

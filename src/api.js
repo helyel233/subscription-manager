@@ -141,6 +141,23 @@ export function normalizeWebdavUrl(url) {
   return (url || '').trim().replace(/\/+$/, '');
 }
 
+// 备份统一存放在配置目录下的专用子目录（可自定义，默认 SubsTracker），避免与其他文件混在一起
+const WEBDAV_BACKUP_DIR = 'SubsTracker';
+
+// 规范化备份子目录名：去除首尾斜杠，为空或含路径穿越时回退默认值
+export function normalizeWebdavDirName(dir) {
+  const name = (dir || '').trim().replace(/^\/+|\/+$/g, '');
+  if (!name || name.includes('..')) {
+    return WEBDAV_BACKUP_DIR;
+  }
+  return name;
+}
+
+// 计算备份实际存放的远端目录地址
+export function buildWebdavDirUrl(url, dir) {
+  return normalizeWebdavUrl(url) + '/' + normalizeWebdavDirName(dir);
+}
+
 // 从配置中提取 WebDAV 连接信息，未配置地址时返回 null
 function getWebdavConfig(config) {
   const baseUrl = normalizeWebdavUrl(config.WEBDAV_URL);
@@ -148,18 +165,20 @@ function getWebdavConfig(config) {
     return null;
   }
   const raw = (config.WEBDAV_USERNAME || '') + ':' + (config.WEBDAV_PASSWORD || '');
-  return { baseUrl, authHeader: 'Basic ' + btoa(unescape(encodeURIComponent(raw))) };
+  return { baseUrl, dirUrl: buildWebdavDirUrl(baseUrl, config.WEBDAV_DIR), authHeader: 'Basic ' + btoa(unescape(encodeURIComponent(raw))) };
 }
 
-// 确保 WebDAV 目录存在（目录已存在时服务器返回 405，忽略即可）
+// 确保 WebDAV 备份目录存在（逐级创建，目录已存在时服务器返回 405，忽略即可）
 async function ensureWebdavDirectory(webdav) {
-  try {
-    await fetch(webdav.baseUrl + '/', {
-      method: 'MKCOL',
-      headers: { Authorization: webdav.authHeader }
-    });
-  } catch (error) {
-    console.error('[WebDAV] 创建目录失败:', error);
+  for (const dirUrl of [webdav.baseUrl, webdav.dirUrl]) {
+    try {
+      await fetch(dirUrl + '/', {
+        method: 'MKCOL',
+        headers: { Authorization: webdav.authHeader }
+      });
+    } catch (error) {
+      console.error('[WebDAV] 创建目录失败:', error);
+    }
   }
 }
 
@@ -301,6 +320,7 @@ const api = {
             TIMEZONE: newConfig.TIMEZONE || config.TIMEZONE || 'UTC',
             THIRD_PARTY_API_TOKEN: newConfig.THIRD_PARTY_API_TOKEN || '',
                         WEBDAV_URL: newConfig.WEBDAV_URL || '',
+                        WEBDAV_DIR: normalizeWebdavDirName(newConfig.WEBDAV_DIR),
                         WEBDAV_USERNAME: newConfig.WEBDAV_USERNAME || '',
                         WEBDAV_PASSWORD: newConfig.WEBDAV_PASSWORD || '',
             EXCHANGE_RATES: parseExchangeRates(
@@ -587,7 +607,7 @@ const api = {
         await ensureWebdavDirectory(webdav);
 
         const filename = 'substracker-backup-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.json';
-        const response = await fetch(webdav.baseUrl + '/' + filename, {
+        const response = await fetch(webdav.dirUrl + '/' + filename, {
           method: 'PUT',
           headers: {
             Authorization: webdav.authHeader,
@@ -624,7 +644,7 @@ const api = {
           );
         }
 
-        const response = await fetch(webdav.baseUrl + '/', {
+        const response = await fetch(webdav.dirUrl + '/', {
           method: 'PROPFIND',
           headers: {
             Authorization: webdav.authHeader,
@@ -674,7 +694,7 @@ const api = {
         }
         const mode = body.mode === 'replace' ? 'replace' : 'merge';
 
-        const response = await fetch(webdav.baseUrl + '/' + encodeURIComponent(filename), {
+        const response = await fetch(webdav.dirUrl + '/' + encodeURIComponent(filename), {
           method: 'GET',
           headers: { Authorization: webdav.authHeader }
         });
@@ -729,7 +749,7 @@ const api = {
           );
         }
 
-        const response = await fetch(webdav.baseUrl + '/' + encodeURIComponent(filename), {
+        const response = await fetch(webdav.dirUrl + '/' + encodeURIComponent(filename), {
           method: 'DELETE',
           headers: { Authorization: webdav.authHeader }
         });

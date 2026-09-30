@@ -6,7 +6,7 @@ import { getCurrentTimeInTimezone, getTimezoneDateParts, formatTimeInTimezone } 
 import { convertToCNY, DEFAULT_EXCHANGE_RATES } from '../src/dashboard.js';
 import { buildCalendarICS } from '../src/ics.js';
 import { hashPassword, verifyPassword, isPasswordHash, generateJWT, verifyJWT } from '../src/auth.js';
-import { parseWebdavPropfindXml, normalizeWebdavUrl } from '../src/api.js';
+import { parseWebdavPropfindXml, normalizeWebdavUrl, buildWebdavDirUrl, normalizeWebdavDirName } from '../src/api.js';
 
 // ==================== 农历转换 ====================
 
@@ -177,6 +177,21 @@ test('normalizeWebdavUrl：去除结尾斜杠', () => {
   assert.equal(normalizeWebdavUrl('https://dav.example.com/dav/backup/'), 'https://dav.example.com/dav/backup');
   assert.equal(normalizeWebdavUrl('https://dav.example.com/dav/backup///'), 'https://dav.example.com/dav/backup');
   assert.equal(normalizeWebdavUrl('  '), '');
+});
+
+test('normalizeWebdavDirName：规范化子目录名，非法值回退默认', () => {
+  assert.equal(normalizeWebdavDirName('MyBackups'), 'MyBackups');
+  assert.equal(normalizeWebdavDirName('/my-dir/'), 'my-dir');
+  assert.equal(normalizeWebdavDirName('  '), 'SubsTracker');
+  assert.equal(normalizeWebdavDirName(''), 'SubsTracker');
+  assert.equal(normalizeWebdavDirName(undefined), 'SubsTracker');
+  assert.equal(normalizeWebdavDirName('../etc'), 'SubsTracker');
+});
+
+test('buildWebdavDirUrl：拼接专用备份子目录', () => {
+  assert.equal(buildWebdavDirUrl('https://dav.example.com/dav/backup/', 'MyBackups'), 'https://dav.example.com/dav/backup/MyBackups');
+  assert.equal(buildWebdavDirUrl('https://dav.example.com/dav/', ''), 'https://dav.example.com/dav/SubsTracker');
+  assert.equal(buildWebdavDirUrl('https://dav.example.com/dav/backup/'), 'https://dav.example.com/dav/backup/SubsTracker');
 });
 
 test('parseWebdavPropfindXml：仅提取 JSON 文件，忽略目录与非 JSON', () => {
