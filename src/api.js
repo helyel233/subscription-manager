@@ -39,7 +39,11 @@ import {
   getRecentPayments,
   getUpcomingRenewals,
   getExpenseByType,
-  getExpenseByCategory
+  getExpenseByCategory,
+  getMonthlyExpenseTrend,
+  getCurrencyDistribution,
+  getMonthlyBreakdown,
+  getNextExpiry
 } from './dashboard.js';
 import { formatTimeInTimezone, formatTimezoneDisplay, getCurrentTimeInTimezone, MS_PER_DAY } from './timezone.js';
 import { DEFAULT_EXCHANGE_RATES } from './dashboard.js';
@@ -348,6 +352,9 @@ const api = {
             THIRD_PARTY_API_TOKEN: newConfig.THIRD_PARTY_API_TOKEN || '',
                         WEBDAV_URL: newConfig.WEBDAV_URL || '',
                         WEBDAV_DIR: normalizeWebdavDirName(newConfig.WEBDAV_DIR),
+                        DASHBOARD_CARDS: (newConfig.DASHBOARD_CARDS && typeof newConfig.DASHBOARD_CARDS === 'object' && !Array.isArray(newConfig.DASHBOARD_CARDS))
+                          ? newConfig.DASHBOARD_CARDS
+                          : (config.DASHBOARD_CARDS || {}),
                         WEBDAV_USERNAME: newConfig.WEBDAV_USERNAME || '',
                         WEBDAV_PASSWORD: newConfig.WEBDAV_PASSWORD || '',
             EXCHANGE_RATES: parseExchangeRates(
@@ -405,18 +412,64 @@ const api = {
       }
     }
 
+    // 仪表盘卡片显示偏好：保存到配置以实现跨设备同步
+    const DASHBOARD_CARD_IDS = [
+      'statMonthly', 'statYearly', 'statActive', 'statDaily', 'statCountdown', 'statPaidPending',
+      'trendCard', 'currencyCard', 'recentCard', 'upcomingCard', 'typeCard', 'categoryCard'
+    ];
+    
+    if (path === '/dashboard/cards' && method === 'POST') {
+          try {
+            const body = await request.json();
+            const rawCards = body && typeof body.cards === 'object' && body.cards !== null && !Array.isArray(body.cards)
+              ? body.cards
+              : null;
+            if (!rawCards) {
+              return new Response(
+                JSON.stringify({ success: false, message: '非法的卡片配置' }),
+                { status: 400, headers: { 'Content-Type': 'application/json' } }
+              );
+            }
+    
+            // 仅接受已知卡片 ID，统一存储全部布尔值
+            const cards = {};
+            DASHBOARD_CARD_IDS.forEach(id => {
+              cards[id] = rawCards[id] !== false;
+            });
+    
+            const newConfig = { ...config, DASHBOARD_CARDS: cards };
+            await env.SUBSCRIPTIONS_KV.put('config', JSON.stringify(newConfig));
+    
+            return new Response(
+              JSON.stringify({ success: true, data: cards }),
+              { headers: { 'Content-Type': 'application/json' } }
+            );
+          } catch (error) {
+            console.error('保存仪表盘卡片偏好失败:', error);
+            return new Response(
+              JSON.stringify({ success: false, message: '保存卡片偏好失败: ' + error.message }),
+              { status: 500, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+    
     if (path === '/dashboard/stats' && method === 'GET') {
       try {
         const subscriptions = await getAllSubscriptions(env);
         const timezone = config?.TIMEZONE || 'UTC';
         const exchangeRates = parseExchangeRates(config.EXCHANGE_RATES);
+        const period = url.searchParams.get('period') === '12m' ? '12m' : 'year';
 
         const monthlyExpense = calculateMonthlyExpense(subscriptions, timezone, exchangeRates);
         const yearlyExpense = calculateYearlyExpense(subscriptions, timezone, exchangeRates);
         const recentPayments = getRecentPayments(subscriptions, timezone, exchangeRates);
         const upcomingRenewals = getUpcomingRenewals(subscriptions, timezone, exchangeRates);
-        const expenseByType = getExpenseByType(subscriptions, timezone, exchangeRates);
-        const expenseByCategory = getExpenseByCategory(subscriptions, timezone, exchangeRates);
+        const expenseByType = getExpenseByType(subscriptions, timezone, exchangeRates, period);
+        const expenseByCategory = getExpenseByCategory(subscriptions, timezone, exchangeRates, period);
+        const monthlyTrend = getMonthlyExpenseTrend(subscriptions, timezone, exchangeRates);
+        const currencyDistribution = getCurrencyDistribution(subscriptions, exchangeRates);
+        const monthlyBreakdown = getMonthlyBreakdown(subscriptions, timezone, exchangeRates);
+        const nextExpiry = getNextExpiry(subscriptions, timezone);
 
         const activeSubscriptions = subscriptions.filter(s => s.isActive);
         const now = getCurrentTimeInTimezone(timezone);
@@ -440,7 +493,11 @@ const api = {
               recentPayments,
               upcomingRenewals,
               expenseByType,
-              expenseByCategory
+              expenseByCategory,
+              monthlyTrend,
+              currencyDistribution,
+              monthlyBreakdown,
+              nextExpiry
             }
           }),
           { headers: { 'Content-Type': 'application/json' } }

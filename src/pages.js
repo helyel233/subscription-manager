@@ -1366,7 +1366,14 @@ const lunarBiz = {
         select.appendChild(option);
       });
 
-      if (previousValue && sorted.map(item => item.toLowerCase()).includes(previousValue.toLowerCase())) {
+      // URL 参数预设分类（如 /admin?category=视频，供仪表盘跳转使用），优先于历史选择
+      const presetCategory = typeof window.__presetCategory === 'string' ? window.__presetCategory : '';
+      const presetMatch = presetCategory ? sorted.find(item => item.toLowerCase() === presetCategory.toLowerCase()) : '';
+
+      if (presetMatch) {
+        select.value = presetMatch;
+        window.__presetCategory = '';
+      } else if (previousValue && sorted.map(item => item.toLowerCase()).includes(previousValue.toLowerCase())) {
         select.value = previousValue;
       } else {
         select.value = '';
@@ -3294,9 +3301,23 @@ const lunarBiz = {
       }
     }
     
-    // 页面加载时检查时区更新
+    // 页面加载时检查时区更新，并应用 URL 参数预设筛选（供仪表盘排行跳转使用）
     window.addEventListener('load', () => {
       checkTimezoneUpdate();
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const presetSearch = urlParams.get('search');
+        const presetCategory = urlParams.get('category');
+        if (presetSearch) {
+          const presetInput = document.getElementById('searchKeyword');
+          if (presetInput) presetInput.value = presetSearch;
+        }
+        if (presetCategory) {
+          window.__presetCategory = presetCategory;
+        }
+      } catch (e) {
+        console.error('解析 URL 筛选参数失败:', e);
+      }
       loadSubscriptions();
     });
     
@@ -5098,6 +5119,8 @@ function dashboardPage() {
   <style>
     .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: all 0.3s; }
     .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); }
+    .btn-secondary { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); transition: all 0.3s; }
+    .btn-secondary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); }
     .stat-card{background:white;border-radius:12px;padding:1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.1);transition:transform 0.2s,box-shadow 0.2s}
     .stat-card:hover{transform:translateY(-4px);box-shadow:0 4px 16px rgba(0,0,0,0.15)}
     .stat-card-header{color:#6b7280;font-size:0.875rem;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem}
@@ -5163,18 +5186,61 @@ ${DARK_MODE_SNIPPET}</head>
   </nav>
 
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="mb-6">
-      <h2 class="text-2xl font-bold text-gray-800">📊 仪表板</h2>
-      <p class="text-sm text-gray-500 mt-1">订阅费用和活动概览（统计金额已折合为 CNY）</p>
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-800">📊 仪表板</h2>
+        <p class="text-sm text-gray-500 mt-1">订阅费用和活动概览（统计金额已折合为 CNY）</p>
+      </div>
+      <div class="flex items-center gap-2 relative">
+        <a href="/api/export" target="_blank" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap">
+          <i class="fas fa-file-export mr-1"></i>导出备份
+        </a>
+        <button type="button" id="cardSettingsBtn" class="btn-primary text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap">
+          <i class="fas fa-th-large mr-1"></i>编辑卡片
+        </button>
+        <div id="cardSettingsPanel" class="hidden absolute right-0 top-11 z-20 w-60 bg-white rounded-lg shadow-lg border border-gray-200 p-3">
+          <div class="text-xs text-gray-500 mb-2">勾选要显示的卡片（偏好保存后跨设备同步）</div>
+          <div id="cardSettingsList" class="space-y-1"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" id="statsGrid">
-      <div class="loading-skeleton"></div>
-      <div class="loading-skeleton"></div>
-      <div class="loading-skeleton"></div>
+    <div id="statsGrid" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div id="card-statMonthly" class="stat-card"><div class="loading-skeleton"></div></div>
+      <div id="card-statYearly" class="stat-card"><div class="loading-skeleton"></div></div>
+      <div id="card-statActive" class="stat-card"><div class="loading-skeleton"></div></div>
+      <div id="card-statDaily" class="stat-card"><div class="loading-skeleton"></div></div>
+      <div id="card-statCountdown" class="stat-card"><div class="loading-skeleton"></div></div>
+      <div id="card-statPaidPending" class="stat-card"><div class="loading-skeleton"></div></div>
     </div>
 
-    <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+    <div id="card-trendCard" class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-chart-line text-indigo-500"></i>
+          <h3 class="text-lg font-medium text-gray-900">支出趋势</h3>
+        </div>
+        <span class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">近12个月 (折合CNY)</span>
+      </div>
+      <div class="p-6" id="expenseTrend">
+        <div class="loading-skeleton"></div>
+      </div>
+    </div>
+
+    <div id="card-currencyCard" class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-coins text-yellow-500"></i>
+          <h3 class="text-lg font-medium text-gray-900">币种分布</h3>
+        </div>
+        <span class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">活跃订阅月均金额</span>
+      </div>
+      <div class="p-6" id="currencyDist">
+        <div class="loading-skeleton"></div>
+      </div>
+    </div>
+
+    <div id="card-recentCard" class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
       <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <i class="fas fa-calendar-check text-blue-500"></i>
@@ -5187,7 +5253,7 @@ ${DARK_MODE_SNIPPET}</head>
       </div>
     </div>
 
-    <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+    <div id="card-upcomingCard" class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
       <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <i class="fas fa-clock text-yellow-500"></i>
@@ -5200,27 +5266,29 @@ ${DARK_MODE_SNIPPET}</head>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <i class="fas fa-chart-bar text-purple-500"></i>
-            <h3 class="text-lg font-medium text-gray-900">按类型支出排行</h3>
-          </div>
-          <span class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">年度统计 (折合CNY)</span>
+    <div id="rankingsToolbar" class="flex items-center justify-between mb-3">
+      <span class="text-sm text-gray-500">支出排行统计周期（点击排行项可跳转到对应订阅）</span>
+      <select id="rankingPeriod" class="text-sm border border-gray-300 rounded-md px-2 py-1.5 bg-white">
+        <option value="year">本年</option>
+        <option value="12m">近12个月</option>
+      </select>
+    </div>
+
+    <div id="rankingsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div id="card-typeCard" class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center gap-2">
+          <i class="fas fa-chart-bar text-purple-500"></i>
+          <h3 class="text-lg font-medium text-gray-900">按类型支出排行</h3>
         </div>
         <div class="p-6" id="expenseByType">
           <div class="loading-skeleton"></div>
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <i class="fas fa-folder text-green-500"></i>
-            <h3 class="text-lg font-medium text-gray-900">按分类支出统计</h3>
-          </div>
-          <span class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">年度统计 (折合CNY)</span>
+      <div id="card-categoryCard" class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center gap-2">
+          <i class="fas fa-folder text-green-500"></i>
+          <h3 class="text-lg font-medium text-gray-900">按分类支出统计</h3>
         </div>
         <div class="p-6" id="expenseByCategory">
           <div class="loading-skeleton"></div>
@@ -5239,38 +5307,182 @@ ${DARK_MODE_SNIPPET}</head>
       return currencySymbols[currency] || '¥';
     }
 
+    // 卡片 ID 与显示名称（与后端 DASHBOARD_CARD_IDS 保持一致）
+    const CARD_LABELS = {
+      statMonthly: '月度支出', statYearly: '年度支出', statActive: '活跃订阅',
+      statDaily: '日均成本', statCountdown: '到期倒计时', statPaidPending: '本月已付/待付',
+      trendCard: '支出趋势', currencyCard: '币种分布', recentCard: '最近支付',
+      upcomingCard: '即将续费', typeCard: '按类型支出排行', categoryCard: '按分类支出统计'
+    };
+    let dashboardCards = {};
+    let dashboardPeriod = 'year';
+
+    function applyCardVisibility() {
+      let rankingsVisible = false;
+      Object.keys(CARD_LABELS).forEach(id => {
+        const el = document.getElementById('card-' + id);
+        if (!el) return;
+        const visible = dashboardCards[id] !== false;
+        el.style.display = visible ? '' : 'none';
+        if (id === 'typeCard' || id === 'categoryCard') rankingsVisible = rankingsVisible || visible;
+      });
+      const toolbar = document.getElementById('rankingsToolbar');
+      if (toolbar) toolbar.style.display = rankingsVisible ? '' : 'none';
+    }
+
+    async function loadCardPreferences() {
+      try {
+        const r = await fetch('/api/config');
+        const cfg = await r.json();
+        dashboardCards = (cfg && cfg.DASHBOARD_CARDS && typeof cfg.DASHBOARD_CARDS === 'object') ? cfg.DASHBOARD_CARDS : {};
+      } catch (e) {
+        dashboardCards = {};
+      }
+      applyCardVisibility();
+      renderCardSettings();
+    }
+
+    function renderCardSettings() {
+      const list = document.getElementById('cardSettingsList');
+      if (!list) return;
+      list.innerHTML = Object.entries(CARD_LABELS).map(([id, label]) => \`
+        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer py-0.5">
+          <input type="checkbox" data-card-id="\${id}" \${dashboardCards[id] !== false ? 'checked' : ''} class="card-pref-checkbox">
+          \${label}
+        </label>
+      \`).join('');
+      list.querySelectorAll('.card-pref-checkbox').forEach(cb => {
+        cb.addEventListener('change', saveCardPreferences);
+      });
+    }
+
+    async function saveCardPreferences() {
+      document.querySelectorAll('.card-pref-checkbox').forEach(cb => {
+        dashboardCards[cb.dataset.cardId] = cb.checked;
+      });
+      applyCardVisibility();
+      try {
+        const r = await fetch('/api/dashboard/cards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cards: dashboardCards })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.message || '保存失败');
+      } catch (e) {
+        console.error('保存卡片偏好失败:', e);
+      }
+    }
+
+    function renderStatCards(data) {
+      const monthly = document.getElementById('card-statMonthly');
+      if (monthly) {
+        monthly.innerHTML = \`
+          <div class="stat-card-header">月度支出 (CNY)</div>
+          <div class="stat-card-value">¥\${data.monthlyExpense.amount.toFixed(2)}</div>
+          <div class="stat-card-subtitle">本月折合支出</div>
+          <div class="stat-card-trend \${data.monthlyExpense.trendDirection}">
+            <i class="fas fa-arrow-\${data.monthlyExpense.trendDirection==='up'?'up':data.monthlyExpense.trendDirection==='down'?'down':'right'}"></i>
+            \${data.monthlyExpense.trend}%
+          </div>
+        \`;
+      }
+      const yearly = document.getElementById('card-statYearly');
+      if (yearly) {
+        yearly.innerHTML = \`
+          <div class="stat-card-header">年度支出 (CNY)</div>
+          <div class="stat-card-value">¥\${data.yearlyExpense.amount.toFixed(2)}</div>
+          <div class="stat-card-subtitle">月均支出: ¥\${data.yearlyExpense.monthlyAverage.toFixed(2)}</div>
+        \`;
+      }
+      const active = document.getElementById('card-statActive');
+      if (active) {
+        active.innerHTML = \`
+          <div class="stat-card-header">活跃订阅</div>
+          <div class="stat-card-value">\${data.activeSubscriptions.active}</div>
+          <div class="stat-card-subtitle">总订阅数: \${data.activeSubscriptions.total}</div>
+          \${data.activeSubscriptions.expiringSoon > 0 ? \`<div class="stat-card-trend down"><i class="fas fa-exclamation-circle"></i>\${data.activeSubscriptions.expiringSoon} 即将到期</div>\` : ''}
+        \`;
+      }
+      const daily = document.getElementById('card-statDaily');
+      if (daily) {
+        daily.innerHTML = \`
+          <div class="stat-card-header">日均成本 (CNY)</div>
+          <div class="stat-card-value">¥\${(data.yearlyExpense.amount / 365).toFixed(2)}</div>
+          <div class="stat-card-subtitle">年度支出 ÷ 365</div>
+        \`;
+      }
+      const countdown = document.getElementById('card-statCountdown');
+      if (countdown) {
+        countdown.innerHTML = data.nextExpiry ? \`
+          <div class="stat-card-header">到期倒计时</div>
+          <div class="stat-card-value">\${data.nextExpiry.daysRemaining === 0 ? '今天' : data.nextExpiry.daysRemaining + ' 天'}</div>
+          <div class="stat-card-subtitle">\${data.nextExpiry.name} · \${new Date(data.nextExpiry.expiryDate).toLocaleDateString('zh-CN')}</div>
+        \` : \`
+          <div class="stat-card-header">到期倒计时</div>
+          <div class="stat-card-value" style="font-size:1.25rem">—</div>
+          <div class="stat-card-subtitle">暂无即将到期的订阅</div>
+        \`;
+      }
+      const paidPending = document.getElementById('card-statPaidPending');
+      if (paidPending) {
+        const mb = data.monthlyBreakdown || { paid: 0, pending: 0 };
+        paidPending.innerHTML = \`
+          <div class="stat-card-header">本月已付 / 待付 (CNY)</div>
+          <div class="stat-card-value" style="font-size:1.5rem">¥\${mb.paid.toFixed(2)} / ¥\${mb.pending.toFixed(2)}</div>
+          <div class="stat-card-subtitle">合计 ¥\${(mb.paid + mb.pending).toFixed(2)}</div>
+        \`;
+      }
+    }
+
+    function renderTrendCard(data) {
+      const trend = document.getElementById('expenseTrend');
+      if (!trend) return;
+      const items = data.monthlyTrend || [];
+      if (items.length === 0) {
+        trend.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📈</div><div class="empty-state-text">暂无支出数据</div></div>';
+        return;
+      }
+      const max = Math.max(...items.map(m => m.amount), 1);
+      trend.innerHTML = '<div style="display:flex;align-items:flex-end;gap:4px;height:200px">' + items.map(m => \`
+        <div style="flex:1;height:100%;display:flex;flex-direction:column;align-items:center;gap:4px" title="\${m.month}: ¥\${m.amount.toFixed(2)}">
+          <span style="font-size:0.625rem;color:#6b7280">\${m.amount > 0 ? '¥' + m.amount.toFixed(0) : ''}</span>
+          <div style="flex:1;width:70%;max-width:32px;display:flex;align-items:flex-end">
+            <div style="width:100%;height:\${m.amount > 0 ? Math.max((m.amount / max) * 100, 5) : 1}%;background:linear-gradient(180deg,#818cf8,#6366f1);border-radius:4px 4px 0 0;min-height:2px"></div>
+          </div>
+          <span style="font-size:0.625rem;color:#9ca3af;white-space:nowrap">\${m.month.slice(5)}月</span>
+        </div>
+      \`).join('') + '</div>';
+    }
+
+    function renderCurrencyCard(data) {
+      const cd = document.getElementById('currencyDist');
+      if (!cd) return;
+      const items = data.currencyDistribution || [];
+      cd.innerHTML = items.length === 0 ? '<div class="empty-state"><div class="empty-state-icon">🪙</div><div class="empty-state-text">暂无活跃订阅</div></div>' :
+        items.map(item => \`
+          <div class="list-item">
+            <div class="list-item-content">
+              <div class="list-item-name">\${item.currency}</div>
+            </div>
+            <div class="list-item-amount">\${getSymbol(item.currency)}\${item.amount.toFixed(2)}<span style="font-size:0.75rem;font-weight:400;color:#9ca3af"> /月</span></div>
+          </div>
+        \`).join('');
+    }
+
     async function loadDashboardData(){
       try {
-        const r=await fetch('/api/dashboard/stats');
+        const r=await fetch('/api/dashboard/stats' + (dashboardPeriod === '12m' ? '?period=12m' : ''));
         const d=await r.json();
         if(!d.success) throw new Error(d.message||'加载失败');
         
         const data=d.data;
-        document.getElementById('statsGrid').innerHTML=\`
-          <div class="stat-card">
-            <div class="stat-card-header">月度支出 (CNY)</div>
-            <div class="stat-card-value">¥\${data.monthlyExpense.amount.toFixed(2)}</div>
-            <div class="stat-card-subtitle">本月折合支出</div>
-            <div class="stat-card-trend \${data.monthlyExpense.trendDirection}">
-              <i class="fas fa-arrow-\${data.monthlyExpense.trendDirection==='up'?'up':data.monthlyExpense.trendDirection==='down'?'down':'right'}"></i>
-              \${data.monthlyExpense.trend}%
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-header">年度支出 (CNY)</div>
-            <div class="stat-card-value">¥\${data.yearlyExpense.amount.toFixed(2)}</div>
-            <div class="stat-card-subtitle">月均支出: ¥\${data.yearlyExpense.monthlyAverage.toFixed(2)}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-header">活跃订阅</div>
-            <div class="stat-card-value">\${data.activeSubscriptions.active}</div>
-            <div class="stat-card-subtitle">总订阅数: \${data.activeSubscriptions.total}</div>
-            \${data.activeSubscriptions.expiringSoon>0?\`<div class="stat-card-trend down"><i class="fas fa-exclamation-circle"></i>\${data.activeSubscriptions.expiringSoon} 即将到期</div>\`:''}
-          </div>
-        \`;
+        renderStatCards(data);
+        renderTrendCard(data);
+        renderCurrencyCard(data);
         
         const rp=document.getElementById('recentPayments');
-        rp.innerHTML=data.recentPayments.length===0?'<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">过去7天内没有支付记录</div></div>':
+        if (rp) rp.innerHTML=data.recentPayments.length===0?'<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">过去7天内没有支付记录</div></div>':
         data.recentPayments.map(s=>\`
           <div class="list-item">
             <div class="list-item-content">
@@ -5285,7 +5497,7 @@ ${DARK_MODE_SNIPPET}</head>
         \`).join('');
         
         const ur=document.getElementById('upcomingRenewals');
-        ur.innerHTML=data.upcomingRenewals.length===0?'<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-text">未来7天内没有即将续费的订阅</div></div>':
+        if (ur) ur.innerHTML=data.upcomingRenewals.length===0?'<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-text">未来7天内没有即将续费的订阅</div></div>':
         data.upcomingRenewals.map(s=>\`
           <div class="list-item">
             <div class="list-item-content">
@@ -5300,13 +5512,13 @@ ${DARK_MODE_SNIPPET}</head>
           </div>
         \`).join('');
         
-        // 支出排行仍然显示 CNY
+        // 支出排行（点击可跳转到订阅列表并预设筛选）
         const et=document.getElementById('expenseByType');
-        et.innerHTML=data.expenseByType.length===0?'<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">暂无支出数据</div></div>':
+        if (et) et.innerHTML=data.expenseByType.length===0?'<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">暂无支出数据</div></div>':
         data.expenseByType.map((item,i)=>\`
           <div class="ranking-item">
             <div class="ranking-item-header">
-              <div class="ranking-item-name">\${item.type}</div>
+              <div class="ranking-item-name"><a href="/admin?search=\${encodeURIComponent(item.type)}" style="color:inherit">\${item.type}</a></div>
               <div class="ranking-item-value">
                 <span class="ranking-item-amount">¥\${item.amount.toFixed(2)}</span>
                 <span class="ranking-item-percentage">\${item.percentage}%</span>
@@ -5319,11 +5531,11 @@ ${DARK_MODE_SNIPPET}</head>
         \`).join('');
         
         const ec=document.getElementById('expenseByCategory');
-        ec.innerHTML=data.expenseByCategory.length===0?'<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">暂无支出数据</div></div>':
+        if (ec) ec.innerHTML=data.expenseByCategory.length===0?'<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">暂无支出数据</div></div>':
         data.expenseByCategory.map((item,i)=>\`
           <div class="ranking-item">
             <div class="ranking-item-header">
-              <div class="ranking-item-name">\${item.category}</div>
+              <div class="ranking-item-name"><a href="/admin?search=\${encodeURIComponent(item.category)}" style="color:inherit">\${item.category}</a></div>
               <div class="ranking-item-value">
                 <span class="ranking-item-amount">¥\${item.amount.toFixed(2)}</span>
                 <span class="ranking-item-percentage">\${item.percentage}%</span>
@@ -5336,11 +5548,38 @@ ${DARK_MODE_SNIPPET}</head>
         \`).join('');
       } catch(e){
         console.error('加载仪表盘数据失败:',e);
-        document.getElementById('statsGrid').innerHTML='<div class="empty-state"><div class="empty-state-icon">❌</div><div class="empty-state-text">加载失败:'+e.message+'</div></div>';
+        const monthly = document.getElementById('card-statMonthly');
+        if (monthly) monthly.innerHTML='<div class="empty-state"><div class="empty-state-icon">❌</div><div class="empty-state-text">加载失败:'+e.message+'</div></div>';
       }
     }
+
+    loadCardPreferences();
     loadDashboardData();
     setInterval(loadDashboardData, 60000);
+
+    // 排行统计周期切换
+    const rankingPeriodSelect = document.getElementById('rankingPeriod');
+    if (rankingPeriodSelect) {
+      rankingPeriodSelect.addEventListener('change', () => {
+        dashboardPeriod = rankingPeriodSelect.value;
+        loadDashboardData();
+      });
+    }
+
+    // 卡片设置面板开关
+    const cardSettingsBtn = document.getElementById('cardSettingsBtn');
+    const cardSettingsPanel = document.getElementById('cardSettingsPanel');
+    if (cardSettingsBtn && cardSettingsPanel) {
+      cardSettingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cardSettingsPanel.classList.toggle('hidden');
+      });
+      document.addEventListener('click', (e) => {
+        if (!cardSettingsPanel.classList.contains('hidden') && !cardSettingsPanel.contains(e.target)) {
+          cardSettingsPanel.classList.add('hidden');
+        }
+      });
+    }
   </script>
 </body>
 </html>`;

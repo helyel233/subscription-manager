@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { lunarCalendar, lunarBiz } from '../src/lunar.js';
 import { resolveReminderSetting, shouldTriggerReminder } from '../src/reminder.js';
 import { getCurrentTimeInTimezone, getTimezoneDateParts, formatTimeInTimezone } from '../src/timezone.js';
-import { convertToCNY, DEFAULT_EXCHANGE_RATES } from '../src/dashboard.js';
+import { convertToCNY, DEFAULT_EXCHANGE_RATES, getMonthlyExpenseTrend, getCurrencyDistribution, getMonthlyBreakdown, getNextExpiry, getExpenseByType } from '../src/dashboard.js';
 import { buildCalendarICS } from '../src/ics.js';
 import { hashPassword, verifyPassword, isPasswordHash, generateJWT, verifyJWT } from '../src/auth.js';
 import { parseWebdavPropfindXml, normalizeWebdavUrl, buildWebdavDirUrl, normalizeWebdavDirName } from '../src/api.js';
@@ -207,4 +207,99 @@ test('parseWebdavPropfindXml：仅提取 JSON 文件，忽略目录与非 JSON',
   assert.equal(files[0].name, 'substracker-backup-2026-09-29T10-00-00.json');
   assert.equal(files[0].size, 1234);
   assert.equal(files[0].lastModified, 'Tue, 29 Sep 2026 10:00:00 GMT');
+});
+
+// ==================== 仪表盘统计扩展 ====================
+
+const nowUTC = () => new Date();
+
+function makeSub(overrides = {}) {
+  return {
+    id: 'sub-' + Math.random().toString(36).slice(2),
+    name: '测试订阅',
+    amount: 10,
+    currency: 'CNY',
+    periodValue: 1,
+    periodUnit: 'month',
+    isActive: true,
+    expiryDate: new Date(nowUTC().getTime() + 3 * 24 * 3600 * 1000).toISOString(),
+    paymentHistory: [],
+    ...overrides
+  };
+}
+
+test('getMonthlyExpenseTrend：返回近12个月桶且当月含支付金额', () => {
+  const subs = [makeSub({
+    paymentHistory: [{ date: new Date().toISOString(), amount: 25 }]
+  })];
+  const trend = getMonthlyExpenseTrend(subs, 'UTC');
+  assert.equal(trend.length, 12);
+  const parts = getTimezoneDateParts(nowUTC(), 'UTC');
+  assert.equal(trend[11].month, `${parts.year}-${String(parts.month).padStart(2, '0')}`);
+  assert.equal(trend[11].amount, 25);
+  assert.equal(trend[10].amount, 0);
+});
+
+test('getCurrencyDistribution：活跃订阅按币种折算月均，排除停用', () => {
+  const subs = [
+    makeSub({ amount: 10, currency: 'USD', periodUnit: 'month', periodValue: 1 }),
+    makeSub({ amount: 120, currency: 'CNY', periodUnit: 'year', periodValue: 1 }),
+    makeSub({ amount: 999, currency: 'CNY', isActive: false })
+  ];
+  const dist = getCurrencyDistribution(subs);
+  const usd = dist.find(d => d.currency === 'USD');
+  const cny = dist.find(d => d.currency === 'CNY');
+  assert.equal(usd.amount, 10);
+  assert.equal(cny.amount, 10);
+  assert.equal(dist.length, 2);
+});
+
+test('getMonthlyBreakdown：拆分本月已付与待付', () => {
+  const now = nowUTC();
+  // 本月内未来到期：当月 23:59（任意时刻都落在本月且 >= now）
+  const pendingDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 0);
+  const subs = [
+    makeSub({ paymentHistory: [{ date: new Date().toISOString(), amount: 20 }] }),
+    makeSub({ amount: 15, expiryDate: pendingDate.toISOString() }),
+    makeSub({ amount: 99, expiryDate: new Date(now.getFullYear(), now.getMonth() + 2, 1).toISOString() })
+  ];
+  const breakdown = getMonthlyBreakdown(subs, 'UTC');
+  assert.equal(breakdown.paid, 20);
+  assert.equal(breakdown.pending, 15);
+});
+
+test('getNextExpiry：返回最近到期的活跃订阅，排除已过期', () => {
+  const now = nowUTC();
+  const subs = [
+    makeSub({ name: '昨天', expiryDate: new Date(now.getTime() - 24 * 3600 * 1000).toISOString() }),
+    makeSub({ name: '后天', expiryDate: new Date(now.getTime() + 2 * 24 * 3600 * 1000).toISOString() }),
+    makeSub({ name: '下周', expiryDate: new Date(now.getTime() + 7 * 24 * 3600 * 1000).toISOString() })
+  ];
+  const next = getNextExpiry(subs, 'UTC');
+  assert.equal(next.name, '后天');
+  assert.ok(next.daysRemaining >= 1 && next.daysRemaining <= 3);
+});
+
+test('getNextExpiry：无有效到期日返回 null', () => {
+  assert.equal(getNextExpiry([makeSub({ expiryDate: '2020-01-01T00:00:00Z' })], 'UTC'), null);
+  assert.equal(getNextExpiry([], 'UTC'), null);
+});
+
+test('getExpenseByType：period=year 与 12m 均计入当月支付，忽略过期支付', () => {
+  const thirteenMonthsAgo = new Date();
+  thirteenMonthsAgo.setMonth(thirteenMonthsAgo.getMonth() - 13);
+  const subs = [makeSub({
+    customType: '流媒体',
+    paymentHistory: [
+      { date: new Date().toISOString(), amount: 30 },
+      { date: thirteenMonthsAgo.toISOString(), amount: 999 }
+    ]
+  })];
+  const byYear = getExpenseByType(subs, 'UTC', undefined, 'year');
+  const by12m = getExpenseByType(subs, 'UTC', undefined, '12m');
+  assert.equal(byYear.length, 1);
+  assert.equal(byYear[0].type, '流媒体');
+  assert.equal(byYear[0].amount, 30);
+  assert.equal(by12m.length, 1);
+  assert.equal(by12m[0].amount, 30);
 });

@@ -151,6 +151,7 @@ async function getConfig(env) {
       THIRD_PARTY_API_TOKEN: config.THIRD_PARTY_API_TOKEN || '',
       WEBDAV_URL: config.WEBDAV_URL || '',
       WEBDAV_DIR: config.WEBDAV_DIR || 'SubsTracker',
+      DASHBOARD_CARDS: (config.DASHBOARD_CARDS && typeof config.DASHBOARD_CARDS === 'object' && !Array.isArray(config.DASHBOARD_CARDS)) ? config.DASHBOARD_CARDS : {},
       WEBDAV_USERNAME: config.WEBDAV_USERNAME || '',
       WEBDAV_PASSWORD: config.WEBDAV_PASSWORD || '',
       EXCHANGE_RATES: { ...DEFAULT_EXCHANGE_RATES, ...(config.EXCHANGE_RATES || {}) }
@@ -168,6 +169,7 @@ async function getConfig(env) {
       JWT_SECRET: defaultJwtSecret,
       WEBDAV_URL: '',
       WEBDAV_DIR: 'SubsTracker',
+      DASHBOARD_CARDS: {},
       WEBDAV_USERNAME: '',
       WEBDAV_PASSWORD: '',
       TG_BOT_TOKEN: '',
