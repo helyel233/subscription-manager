@@ -305,6 +305,37 @@ async function sendNotificationToAllChannels(title, commonContent, config, logPr
         const success = await sendBarkNotification(title, barkContent, config);
         console.log(`${logPrefix} 发送Bark通知 ${success ? '成功' : '失败'}`);
     }
+    const plainChannelLogs = {
+      dingtalk: '钉钉机器人',
+      feishu: '飞书机器人',
+      serverchan: 'Server酱',
+      pushplus: 'PushPlus',
+      wxpusher: 'WxPusher',
+      discord: 'Discord',
+      slack: 'Slack',
+      ntfy: 'ntfy',
+      pushover: 'Pushover',
+      pushdeer: 'PushDeer'
+    };
+    const plainChannelSenders = {
+      dingtalk: sendDingtalkNotification,
+      feishu: sendFeishuNotification,
+      serverchan: sendServerchanNotification,
+      pushplus: sendPushplusNotification,
+      wxpusher: sendWxpusherNotification,
+      discord: sendDiscordNotification,
+      slack: sendSlackNotification,
+      ntfy: sendNtfyNotification,
+      pushover: sendPushoverNotification,
+      pushdeer: sendPushdeerNotification
+    };
+    for (const [type, sender] of Object.entries(plainChannelSenders)) {
+      if (config.ENABLED_NOTIFIERS.includes(type)) {
+        const plainContent = commonContent.replace(/(\**|\*|##|#|`)/g, '');
+        const success = await sender(title, plainContent, config);
+        console.log(`${logPrefix} 发送${plainChannelLogs[type]}通知 ${success ? '成功' : '失败'}`);
+      }
+    }
 }
 
 async function sendTelegramNotification(message, config) {
@@ -485,6 +516,312 @@ async function sendEmailNotification(title, content, config) {
     }
   } catch (error) {
     console.error('[邮件通知] 发送邮件失败:', error);
+    return false;
+  }
+}
+
+// HMAC-SHA256 签名（Base64），用于钉钉/飞书机器人加签
+async function hmacSha256Base64(secret, message) {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+}
+
+async function sendDingtalkNotification(title, content, config) {
+  try {
+    if (!config.DINGTALK_WEBHOOK) {
+      console.error('[钉钉机器人] 通知未配置，缺少Webhook URL');
+      return false;
+    }
+
+    console.log('[钉钉机器人] 开始发送通知');
+
+    let url = config.DINGTALK_WEBHOOK;
+    // 可选加签：timestamp + "\n" + secret 作密钥，拼接 timestamp 与 sign 参数
+    if (config.DINGTALK_SECRET) {
+      const timestamp = Date.now();
+      const sign = await hmacSha256Base64(config.DINGTALK_SECRET, timestamp + '\n' + config.DINGTALK_SECRET);
+      url += (url.includes('?') ? '&' : '?') + 'timestamp=' + timestamp + '&sign=' + encodeURIComponent(sign);
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        msgtype: 'text',
+        text: { content: `${title}\n\n${content}` }
+      })
+    });
+
+    const result = await response.json();
+    console.log('[钉钉机器人] 发送结果:', result);
+    return response.ok && result.errcode === 0;
+  } catch (error) {
+    console.error('[钉钉机器人] 发送通知失败:', error);
+    return false;
+  }
+}
+
+async function sendFeishuNotification(title, content, config) {
+  try {
+    if (!config.FEISHU_WEBHOOK) {
+      console.error('[飞书机器人] 通知未配置，缺少Webhook URL');
+      return false;
+    }
+
+    console.log('[飞书机器人] 开始发送通知');
+
+    const payload = {
+      msg_type: 'text',
+      content: { text: `${title}\n\n${content}` }
+    };
+
+    // 可选签名校验：key = timestamp + "\n" + secret，消息体为空字符串
+    if (config.FEISHU_SECRET) {
+      const timestamp = Math.floor(Date.now() / 1000);
+      payload.timestamp = String(timestamp);
+      payload.sign = await hmacSha256Base64(config.FEISHU_SECRET + '\n' + timestamp, '');
+    }
+
+    const response = await fetch(config.FEISHU_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    console.log('[飞书机器人] 发送结果:', result);
+    return response.ok && (result.code === 0 || result.StatusCode === 0);
+  } catch (error) {
+    console.error('[飞书机器人] 发送通知失败:', error);
+    return false;
+  }
+}
+
+async function sendServerchanNotification(title, content, config) {
+  try {
+    if (!config.SERVERCHAN_SENDKEY) {
+      console.error('[Server酱] 通知未配置，缺少SendKey');
+      return false;
+    }
+
+    console.log('[Server酱] 开始发送通知');
+
+    const response = await fetch('https://sctapi.ftqq.com/' + config.SERVERCHAN_SENDKEY + '.send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ title: title, desp: content }).toString()
+    });
+
+    const result = await response.json();
+    console.log('[Server酱] 发送结果:', result);
+    return response.ok && result.code === 0;
+  } catch (error) {
+    console.error('[Server酱] 发送通知失败:', error);
+    return false;
+  }
+}
+
+async function sendPushplusNotification(title, content, config) {
+  try {
+    if (!config.PUSHPLUS_TOKEN) {
+      console.error('[PushPlus] 通知未配置，缺少Token');
+      return false;
+    }
+
+    console.log('[PushPlus] 开始发送通知');
+
+    const response = await fetch('https://www.pushplus.plus/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: config.PUSHPLUS_TOKEN,
+        title: title,
+        content: content,
+        template: 'txt'
+      })
+    });
+
+    const result = await response.json();
+    console.log('[PushPlus] 发送结果:', result);
+    return response.ok && result.code === 200;
+  } catch (error) {
+    console.error('[PushPlus] 发送通知失败:', error);
+    return false;
+  }
+}
+
+async function sendWxpusherNotification(title, content, config) {
+  try {
+    if (!config.WXPUSHER_APP_TOKEN || !config.WXPUSHER_UID) {
+      console.error('[WxPusher] 通知未配置，缺少AppToken或UID');
+      return false;
+    }
+
+    console.log('[WxPusher] 开始发送通知到 UID: ' + config.WXPUSHER_UID);
+
+    const response = await fetch('https://wxpusher.zjiecode.com/api/send/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        appToken: config.WXPUSHER_APP_TOKEN,
+        content: `${title}\n\n${content}`,
+        summary: title,
+        contentType: 1,
+        uids: [config.WXPUSHER_UID]
+      })
+    });
+
+    const result = await response.json();
+    console.log('[WxPusher] 发送结果:', result);
+    return response.ok && result.code === 1000;
+  } catch (error) {
+    console.error('[WxPusher] 发送通知失败:', error);
+    return false;
+  }
+}
+
+async function sendDiscordNotification(title, content, config) {
+  try {
+    if (!config.DISCORD_WEBHOOK) {
+      console.error('[Discord] 通知未配置，缺少Webhook URL');
+      return false;
+    }
+
+    console.log('[Discord] 开始发送通知');
+
+    const response = await fetch(config.DISCORD_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: `**${title}**\n\n${content}` })
+    });
+
+    console.log('[Discord] 发送结果:', response.status);
+    return response.ok;
+  } catch (error) {
+    console.error('[Discord] 发送通知失败:', error);
+    return false;
+  }
+}
+
+async function sendSlackNotification(title, content, config) {
+  try {
+    if (!config.SLACK_WEBHOOK) {
+      console.error('[Slack] 通知未配置，缺少Webhook URL');
+      return false;
+    }
+
+    console.log('[Slack] 开始发送通知');
+
+    const response = await fetch(config.SLACK_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: `*${title}*\n\n${content}` })
+    });
+
+    console.log('[Slack] 发送结果:', response.status);
+    return response.ok;
+  } catch (error) {
+    console.error('[Slack] 发送通知失败:', error);
+    return false;
+  }
+}
+
+async function sendNtfyNotification(title, content, config) {
+  try {
+    if (!config.NTFY_TOPIC) {
+      console.error('[ntfy] 通知未配置，缺少Topic');
+      return false;
+    }
+
+    const server = (config.NTFY_SERVER || 'https://ntfy.sh').replace(/\/+$/, '');
+    console.log('[ntfy] 开始发送通知到: ' + server + '/' + config.NTFY_TOPIC);
+
+    // JSON 发布方式，避免标题含非 ASCII 字符时无法放入请求头
+    const headers = { 'Content-Type': 'application/json' };
+    if (config.NTFY_TOKEN) {
+      headers.Authorization = 'Bearer ' + config.NTFY_TOKEN;
+    }
+
+    const response = await fetch(server + '/', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        topic: config.NTFY_TOPIC,
+        title: title,
+        body: content
+      })
+    });
+
+    console.log('[ntfy] 发送结果:', response.status);
+    return response.ok;
+  } catch (error) {
+    console.error('[ntfy] 发送通知失败:', error);
+    return false;
+  }
+}
+
+async function sendPushoverNotification(title, content, config) {
+  try {
+    if (!config.PUSHOVER_TOKEN || !config.PUSHOVER_USER) {
+      console.error('[Pushover] 通知未配置，缺少API Token或User Key');
+      return false;
+    }
+
+    console.log('[Pushover] 开始发送通知');
+
+    const response = await fetch('https://api.pushover.net/1/messages.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        token: config.PUSHOVER_TOKEN,
+        user: config.PUSHOVER_USER,
+        title: title,
+        message: content
+      }).toString()
+    });
+
+    const result = await response.json();
+    console.log('[Pushover] 发送结果:', result.status);
+    return response.ok && result.status === 1;
+  } catch (error) {
+    console.error('[Pushover] 发送通知失败:', error);
+    return false;
+  }
+}
+
+async function sendPushdeerNotification(title, content, config) {
+  try {
+    if (!config.PUSHDEER_KEY) {
+      console.error('[PushDeer] 通知未配置，缺少Push Key');
+      return false;
+    }
+
+    const server = (config.PUSHDEER_SERVER || 'https://api2.pushdeer.com').replace(/\/+$/, '');
+    console.log('[PushDeer] 开始发送通知到: ' + server);
+
+    const response = await fetch(server + '/message/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pushkey: config.PUSHDEER_KEY,
+        text: `${title}\n\n${content}`,
+        type: 'text'
+      })
+    });
+
+    const result = await response.json();
+    console.log('[PushDeer] 发送结果:', result);
+    return response.ok && result.code === 0;
+  } catch (error) {
+    console.error('[PushDeer] 发送通知失败:', error);
     return false;
   }
 }
@@ -731,6 +1068,16 @@ export {
   sendNotifyXNotification,
   sendBarkNotification,
   sendEmailNotification,
+  sendDingtalkNotification,
+  sendFeishuNotification,
+  sendServerchanNotification,
+  sendPushplusNotification,
+  sendWxpusherNotification,
+  sendDiscordNotification,
+  sendSlackNotification,
+  sendNtfyNotification,
+  sendPushoverNotification,
+  sendPushdeerNotification,
   sendNotificationToAllChannels,
   formatNotificationContent,
   checkExpiringSubscriptions

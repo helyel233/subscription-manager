@@ -19,7 +19,17 @@ import {
   sendWebhookNotification,
   sendWechatBotNotification,
   sendEmailNotification,
-  sendBarkNotification
+  sendBarkNotification,
+  sendDingtalkNotification,
+  sendFeishuNotification,
+  sendServerchanNotification,
+  sendPushplusNotification,
+  sendWxpusherNotification,
+  sendDiscordNotification,
+  sendSlackNotification,
+  sendNtfyNotification,
+  sendPushoverNotification,
+  sendPushdeerNotification
 } from './notify.js';
 import { extractTagsFromSubscriptions } from './pages.js';
 import { lunarCalendar } from './lunar.js';
@@ -316,6 +326,23 @@ const api = {
             BARK_DEVICE_KEY: newConfig.BARK_DEVICE_KEY || '',
             BARK_SERVER: newConfig.BARK_SERVER || 'https://api.day.app',
             BARK_IS_ARCHIVE: newConfig.BARK_IS_ARCHIVE || 'false',
+            DINGTALK_WEBHOOK: newConfig.DINGTALK_WEBHOOK || '',
+            DINGTALK_SECRET: newConfig.DINGTALK_SECRET || '',
+            FEISHU_WEBHOOK: newConfig.FEISHU_WEBHOOK || '',
+            FEISHU_SECRET: newConfig.FEISHU_SECRET || '',
+            SERVERCHAN_SENDKEY: newConfig.SERVERCHAN_SENDKEY || '',
+            PUSHPLUS_TOKEN: newConfig.PUSHPLUS_TOKEN || '',
+            WXPUSHER_APP_TOKEN: newConfig.WXPUSHER_APP_TOKEN || '',
+            WXPUSHER_UID: newConfig.WXPUSHER_UID || '',
+            DISCORD_WEBHOOK: newConfig.DISCORD_WEBHOOK || '',
+            SLACK_WEBHOOK: newConfig.SLACK_WEBHOOK || '',
+            NTFY_SERVER: newConfig.NTFY_SERVER || 'https://ntfy.sh',
+            NTFY_TOPIC: newConfig.NTFY_TOPIC || '',
+            NTFY_TOKEN: newConfig.NTFY_TOKEN || '',
+            PUSHOVER_TOKEN: newConfig.PUSHOVER_TOKEN || '',
+            PUSHOVER_USER: newConfig.PUSHOVER_USER || '',
+            PUSHDEER_SERVER: newConfig.PUSHDEER_SERVER || 'https://api2.pushdeer.com',
+            PUSHDEER_KEY: newConfig.PUSHDEER_KEY || '',
             ENABLED_NOTIFIERS: newConfig.ENABLED_NOTIFIERS || ['notifyx'],
             TIMEZONE: newConfig.TIMEZONE || config.TIMEZONE || 'UTC',
             THIRD_PARTY_API_TOKEN: newConfig.THIRD_PARTY_API_TOKEN || '',
@@ -510,6 +537,91 @@ const api = {
 
           success = await sendBarkNotification(title, content, testConfig);
           message = success ? 'Bark通知发送成功' : 'Bark通知发送失败，请检查配置';
+        } else if (body.type === 'dingtalk') {
+          const testConfig = {
+            ...config,
+            DINGTALK_WEBHOOK: body.DINGTALK_WEBHOOK,
+            DINGTALK_SECRET: body.DINGTALK_SECRET
+          };
+          const title = '测试通知';
+          const content = '这是一条测试通知，用于验证钉钉机器人通知功能是否正常工作。\n\n发送时间: ' + formatTimeInTimezone(new Date(), config?.TIMEZONE || 'UTC', 'datetime');
+          success = await sendDingtalkNotification(title, content, testConfig);
+          message = success ? '钉钉机器人通知发送成功' : '钉钉机器人通知发送失败，请检查配置';
+        } else if (body.type === 'feishu') {
+          const testConfig = {
+            ...config,
+            FEISHU_WEBHOOK: body.FEISHU_WEBHOOK,
+            FEISHU_SECRET: body.FEISHU_SECRET
+          };
+          const title = '测试通知';
+          const content = '这是一条测试通知，用于验证飞书机器人通知功能是否正常工作。\n\n发送时间: ' + formatTimeInTimezone(new Date(), config?.TIMEZONE || 'UTC', 'datetime');
+          success = await sendFeishuNotification(title, content, testConfig);
+          message = success ? '飞书机器人通知发送成功' : '飞书机器人通知发送失败，请检查配置';
+        } else if (body.type === 'serverchan') {
+          const testConfig = { ...config, SERVERCHAN_SENDKEY: body.SERVERCHAN_SENDKEY };
+          const title = '测试通知';
+          const content = '这是一条测试通知，用于验证 Server酱 通知功能是否正常工作。\n\n发送时间: ' + formatTimeInTimezone(new Date(), config?.TIMEZONE || 'UTC', 'datetime');
+          success = await sendServerchanNotification(title, content, testConfig);
+          message = success ? 'Server酱通知发送成功' : 'Server酱通知发送失败，请检查配置';
+        } else if (body.type === 'pushplus') {
+          const testConfig = { ...config, PUSHPLUS_TOKEN: body.PUSHPLUS_TOKEN };
+          const title = '测试通知';
+          const content = '这是一条测试通知，用于验证 PushPlus 通知功能是否正常工作。\n\n发送时间: ' + formatTimeInTimezone(new Date(), config?.TIMEZONE || 'UTC', 'datetime');
+          success = await sendPushplusNotification(title, content, testConfig);
+          message = success ? 'PushPlus通知发送成功' : 'PushPlus通知发送失败，请检查配置';
+        } else if (body.type === 'wxpusher') {
+          const testConfig = {
+            ...config,
+            WXPUSHER_APP_TOKEN: body.WXPUSHER_APP_TOKEN,
+            WXPUSHER_UID: body.WXPUSHER_UID
+          };
+          const title = '测试通知';
+          const content = '这是一条测试通知，用于验证 WxPusher 通知功能是否正常工作。\n\n发送时间: ' + formatTimeInTimezone(new Date(), config?.TIMEZONE || 'UTC', 'datetime');
+          success = await sendWxpusherNotification(title, content, testConfig);
+          message = success ? 'WxPusher通知发送成功' : 'WxPusher通知发送失败，请检查配置';
+        } else if (body.type === 'discord') {
+          const testConfig = { ...config, DISCORD_WEBHOOK: body.DISCORD_WEBHOOK };
+          const title = '测试通知';
+          const content = '这是一条测试通知，用于验证 Discord 通知功能是否正常工作。\n\n发送时间: ' + formatTimeInTimezone(new Date(), config?.TIMEZONE || 'UTC', 'datetime');
+          success = await sendDiscordNotification(title, content, testConfig);
+          message = success ? 'Discord通知发送成功' : 'Discord通知发送失败，请检查配置';
+        } else if (body.type === 'slack') {
+          const testConfig = { ...config, SLACK_WEBHOOK: body.SLACK_WEBHOOK };
+          const title = '测试通知';
+          const content = '这是一条测试通知，用于验证 Slack 通知功能是否正常工作。\n\n发送时间: ' + formatTimeInTimezone(new Date(), config?.TIMEZONE || 'UTC', 'datetime');
+          success = await sendSlackNotification(title, content, testConfig);
+          message = success ? 'Slack通知发送成功' : 'Slack通知发送失败，请检查配置';
+        } else if (body.type === 'ntfy') {
+          const testConfig = {
+            ...config,
+            NTFY_SERVER: body.NTFY_SERVER,
+            NTFY_TOPIC: body.NTFY_TOPIC,
+            NTFY_TOKEN: body.NTFY_TOKEN
+          };
+          const title = '测试通知';
+          const content = '这是一条测试通知，用于验证 ntfy 通知功能是否正常工作。\n\n发送时间: ' + formatTimeInTimezone(new Date(), config?.TIMEZONE || 'UTC', 'datetime');
+          success = await sendNtfyNotification(title, content, testConfig);
+          message = success ? 'ntfy通知发送成功' : 'ntfy通知发送失败，请检查配置';
+        } else if (body.type === 'pushover') {
+          const testConfig = {
+            ...config,
+            PUSHOVER_TOKEN: body.PUSHOVER_TOKEN,
+            PUSHOVER_USER: body.PUSHOVER_USER
+          };
+          const title = '测试通知';
+          const content = '这是一条测试通知，用于验证 Pushover 通知功能是否正常工作。\n\n发送时间: ' + formatTimeInTimezone(new Date(), config?.TIMEZONE || 'UTC', 'datetime');
+          success = await sendPushoverNotification(title, content, testConfig);
+          message = success ? 'Pushover通知发送成功' : 'Pushover通知发送失败，请检查配置';
+        } else if (body.type === 'pushdeer') {
+          const testConfig = {
+            ...config,
+            PUSHDEER_SERVER: body.PUSHDEER_SERVER,
+            PUSHDEER_KEY: body.PUSHDEER_KEY
+          };
+          const title = '测试通知';
+          const content = '这是一条测试通知，用于验证 PushDeer 通知功能是否正常工作。\n\n发送时间: ' + formatTimeInTimezone(new Date(), config?.TIMEZONE || 'UTC', 'datetime');
+          success = await sendPushdeerNotification(title, content, testConfig);
+          message = success ? 'PushDeer通知发送成功' : 'PushDeer通知发送失败，请检查配置';
         }
 
         return new Response(

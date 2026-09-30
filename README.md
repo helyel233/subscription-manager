@@ -76,6 +76,16 @@ Fork 本仓库后点击部署按钮，**注意 KV 名称需绑定为 `SUBSCRIPTI
 | Webhook | 推送 URL（可选自定义方法/请求头/模板） | 自建服务或第三方平台 |
 | 邮件（Resend） | API Key、发件/收件邮箱 | [Resend 教程](https://developers.cloudflare.com/workers/tutorials/send-emails-with-resend/) |
 | Bark | 服务器地址、设备 Key | Bark App 内复制 |
+| 钉钉机器人 | Webhook URL（可选加签密钥） | 钉钉群添加自定义机器人 |
+| 飞书机器人 | Webhook URL（可选签名密钥） | 飞书群添加自定义机器人 |
+| Server酱 | SendKey | [Server酱官网](https://sct.ftqq.com/) |
+| PushPlus | Token | [PushPlus 官网](https://www.pushplus.plus/) |
+| WxPusher | AppToken、用户 UID | [WxPusher 官网](https://wxpusher.zjiecode.com/) |
+| Discord | Webhook URL | 频道设置 → 整合 → Webhook |
+| Slack | Incoming Webhook URL | Slack 应用启用 Incoming Webhooks |
+| ntfy | 服务器地址（可选）、Topic（可选令牌） | [ntfy 官网](https://ntfy.sh/)，App 订阅同名主题 |
+| Pushover | API Token、User Key | [Pushover 官网](https://pushover.net/) |
+| PushDeer | 服务器地址（可选）、Push Key | [PushDeer 官网](https://www.pushdeer.com/) |
 
 **Webhook 模板占位符**：`{{title}}`、`{{content}}`、`{{tags}}`（多行）、`{{tagsLine}}`、`{{timestamp}}`、`{{formattedMessage}}`
 

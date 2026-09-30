@@ -3445,8 +3445,7 @@ const configPage = `
       border-color: #6366f1; 
     }
     .config-section.inactive { 
-      background-color: #f9fafb; 
-      opacity: 0.7; 
+      display: none;
     }
   </style>
 ${DARK_MODE_SNIPPET}</head>
@@ -3674,6 +3673,46 @@ ${DARK_MODE_SNIPPET}</head>
                 <input type="checkbox" name="enabledNotifiers" value="bark" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
                 <span class="ml-2 text-sm text-gray-700">Bark</span>
               </label>
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="enabledNotifiers" value="dingtalk" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <span class="ml-2 text-sm text-gray-700">钉钉机器人</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="enabledNotifiers" value="feishu" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <span class="ml-2 text-sm text-gray-700">飞书机器人</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="enabledNotifiers" value="serverchan" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <span class="ml-2 text-sm text-gray-700">Server酱</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="enabledNotifiers" value="pushplus" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <span class="ml-2 text-sm text-gray-700">PushPlus</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="enabledNotifiers" value="wxpusher" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <span class="ml-2 text-sm text-gray-700">WxPusher</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="enabledNotifiers" value="discord" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <span class="ml-2 text-sm text-gray-700">Discord</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="enabledNotifiers" value="slack" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <span class="ml-2 text-sm text-gray-700">Slack</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="enabledNotifiers" value="ntfy" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <span class="ml-2 text-sm text-gray-700">ntfy</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="enabledNotifiers" value="pushover" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <span class="ml-2 text-sm text-gray-700">Pushover</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="checkbox" name="enabledNotifiers" value="pushdeer" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <span class="ml-2 text-sm text-gray-700">PushDeer</span>
+              </label>
             </div>
             <div class="mt-2 flex flex-wrap gap-4">
               <a href="https://www.notifyx.cn/" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm">
@@ -3868,6 +3907,189 @@ ${DARK_MODE_SNIPPET}</head>
               </button>
             </div>
           </div>
+
+          <div id="dingtalkConfig" class="config-section">
+            <h4 class="text-md font-medium text-gray-900 mb-3">钉钉机器人 配置</h4>
+            <div class="grid grid-cols-1 gap-4 mb-4">
+              <div>
+                <label for="dingtalkWebhook" class="block text-sm font-medium text-gray-700">机器人 Webhook URL</label>
+                <input type="url" id="dingtalkWebhook" placeholder="https://oapi.dingtalk.com/robot/send?access_token=xxx" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <p class="mt-1 text-sm text-gray-500">钉钉群添加自定义机器人后获取的 Webhook URL</p>
+              </div>
+              <div>
+                <label for="dingtalkSecret" class="block text-sm font-medium text-gray-700">加签密钥（可选）</label>
+                <input type="text" id="dingtalkSecret" placeholder="SEC 开头的加签密钥，未开启加签则留空" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <p class="mt-1 text-sm text-gray-500">机器人安全设置为“加签”时填写</p>
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <button type="button" id="testDingtalkBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium">
+                <i class="fas fa-paper-plane mr-2"></i>测试 钉钉机器人
+              </button>
+            </div>
+          </div>
+
+          <div id="feishuConfig" class="config-section">
+            <h4 class="text-md font-medium text-gray-900 mb-3">飞书机器人 配置</h4>
+            <div class="grid grid-cols-1 gap-4 mb-4">
+              <div>
+                <label for="feishuWebhook" class="block text-sm font-medium text-gray-700">机器人 Webhook URL</label>
+                <input type="url" id="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxx" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <p class="mt-1 text-sm text-gray-500">飞书群添加自定义机器人后获取的 Webhook URL</p>
+              </div>
+              <div>
+                <label for="feishuSecret" class="block text-sm font-medium text-gray-700">签名校验密钥（可选）</label>
+                <input type="text" id="feishuSecret" placeholder="签名校验密钥，未开启则留空" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <p class="mt-1 text-sm text-gray-500">机器人安全设置为“签名校验”时填写</p>
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <button type="button" id="testFeishuBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium">
+                <i class="fas fa-paper-plane mr-2"></i>测试 飞书机器人
+              </button>
+            </div>
+          </div>
+
+          <div id="serverchanConfig" class="config-section">
+            <h4 class="text-md font-medium text-gray-900 mb-3">Server酱 配置</h4>
+            <div class="mb-4">
+              <label for="serverchanSendKey" class="block text-sm font-medium text-gray-700">SendKey</label>
+              <input type="text" id="serverchanSendKey" placeholder="SCT 开头的 SendKey" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+              <p class="mt-1 text-sm text-gray-500">从 <a href="https://sct.ftqq.com/" target="_blank" class="text-indigo-600 hover:text-indigo-800">Server酱官网</a> 获取，推送到微信服务号</p>
+            </div>
+            <div class="flex justify-end">
+              <button type="button" id="testServerchanBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium">
+                <i class="fas fa-paper-plane mr-2"></i>测试 Server酱
+              </button>
+            </div>
+          </div>
+
+          <div id="pushplusConfig" class="config-section">
+            <h4 class="text-md font-medium text-gray-900 mb-3">PushPlus 配置</h4>
+            <div class="mb-4">
+              <label for="pushplusToken" class="block text-sm font-medium text-gray-700">Token</label>
+              <input type="text" id="pushplusToken" placeholder="从 PushPlus 官网获取的 Token" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+              <p class="mt-1 text-sm text-gray-500">从 <a href="https://www.pushplus.plus/" target="_blank" class="text-indigo-600 hover:text-indigo-800">PushPlus 官网</a> 获取，推送到微信</p>
+            </div>
+            <div class="flex justify-end">
+              <button type="button" id="testPushplusBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium">
+                <i class="fas fa-paper-plane mr-2"></i>测试 PushPlus
+              </button>
+            </div>
+          </div>
+
+          <div id="wxpusherConfig" class="config-section">
+            <h4 class="text-md font-medium text-gray-900 mb-3">WxPusher 配置</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label for="wxpusherAppToken" class="block text-sm font-medium text-gray-700">AppToken</label>
+                <input type="text" id="wxpusherAppToken" placeholder="创建应用后获取的 AppToken" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+              </div>
+              <div>
+                <label for="wxpusherUid" class="block text-sm font-medium text-gray-700">用户 UID</label>
+                <input type="text" id="wxpusherUid" placeholder="关注后获取的 UID，如 UID_xxx" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+              </div>
+            </div>
+            <p class="mt-1 text-sm text-gray-500 mb-4">从 <a href="https://wxpusher.zjiecode.com/" target="_blank" class="text-indigo-600 hover:text-indigo-800">WxPusher 官网</a> 创建应用并关注后获取，推送到微信</p>
+            <div class="flex justify-end">
+              <button type="button" id="testWxpusherBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium">
+                <i class="fas fa-paper-plane mr-2"></i>测试 WxPusher
+              </button>
+            </div>
+          </div>
+
+          <div id="discordConfig" class="config-section">
+            <h4 class="text-md font-medium text-gray-900 mb-3">Discord 配置</h4>
+            <div class="mb-4">
+              <label for="discordWebhook" class="block text-sm font-medium text-gray-700">Webhook URL</label>
+              <input type="url" id="discordWebhook" placeholder="https://discord.com/api/webhooks/xxx/yyy" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+              <p class="mt-1 text-sm text-gray-500">频道设置 → 整合 → Webhook 创建后获取</p>
+            </div>
+            <div class="flex justify-end">
+              <button type="button" id="testDiscordBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium">
+                <i class="fas fa-paper-plane mr-2"></i>测试 Discord
+              </button>
+            </div>
+          </div>
+
+          <div id="slackConfig" class="config-section">
+            <h4 class="text-md font-medium text-gray-900 mb-3">Slack 配置</h4>
+            <div class="mb-4">
+              <label for="slackWebhook" class="block text-sm font-medium text-gray-700">Incoming Webhook URL</label>
+              <input type="url" id="slackWebhook" placeholder="https://hooks.slack.com/services/Txxx/Bxxx/xxx" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+              <p class="mt-1 text-sm text-gray-500">Slack 应用中启用 Incoming Webhooks 后获取</p>
+            </div>
+            <div class="flex justify-end">
+              <button type="button" id="testSlackBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium">
+                <i class="fas fa-paper-plane mr-2"></i>测试 Slack
+              </button>
+            </div>
+          </div>
+
+          <div id="ntfyConfig" class="config-section">
+            <h4 class="text-md font-medium text-gray-900 mb-3">ntfy 配置</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label for="ntfyServer" class="block text-sm font-medium text-gray-700">服务器地址</label>
+                <input type="url" id="ntfyServer" placeholder="https://ntfy.sh" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <p class="mt-1 text-sm text-gray-500">默认官方服务器，也可使用自建服务</p>
+              </div>
+              <div>
+                <label for="ntfyTopic" class="block text-sm font-medium text-gray-700">Topic</label>
+                <input type="text" id="ntfyTopic" placeholder="自定义主题名，如 substracker-abc123" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <p class="mt-1 text-sm text-gray-500">App 中订阅同名主题即可接收，建议使用不易猜测的名称</p>
+              </div>
+              <div>
+                <label for="ntfyToken" class="block text-sm font-medium text-gray-700">访问令牌（可选）</label>
+                <input type="text" id="ntfyToken" placeholder="服务器开启鉴权时填写" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <button type="button" id="testNtfyBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium">
+                <i class="fas fa-paper-plane mr-2"></i>测试 ntfy
+              </button>
+            </div>
+          </div>
+
+          <div id="pushoverConfig" class="config-section">
+            <h4 class="text-md font-medium text-gray-900 mb-3">Pushover 配置</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label for="pushoverToken" class="block text-sm font-medium text-gray-700">API Token</label>
+                <input type="text" id="pushoverToken" placeholder="创建应用后获取的 API Token" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+              </div>
+              <div>
+                <label for="pushoverUser" class="block text-sm font-medium text-gray-700">User Key</label>
+                <input type="text" id="pushoverUser" placeholder="Pushover 用户 Key" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+              </div>
+            </div>
+            <p class="mt-1 text-sm text-gray-500 mb-4">从 <a href="https://pushover.net/" target="_blank" class="text-indigo-600 hover:text-indigo-800">Pushover 官网</a> 获取，iOS/Android 应用推送</p>
+            <div class="flex justify-end">
+              <button type="button" id="testPushoverBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium">
+                <i class="fas fa-paper-plane mr-2"></i>测试 Pushover
+              </button>
+            </div>
+          </div>
+
+          <div id="pushdeerConfig" class="config-section">
+            <h4 class="text-md font-medium text-gray-900 mb-3">PushDeer 配置</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label for="pushdeerServer" class="block text-sm font-medium text-gray-700">服务器地址</label>
+                <input type="url" id="pushdeerServer" placeholder="https://api2.pushdeer.com" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <p class="mt-1 text-sm text-gray-500">默认官方服务器，也可使用自建服务</p>
+              </div>
+              <div>
+                <label for="pushdeerKey" class="block text-sm font-medium text-gray-700">Push Key</label>
+                <input type="text" id="pushdeerKey" placeholder="PDU 开头的 Push Key" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <button type="button" id="testPushdeerBtn" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium">
+                <i class="fas fa-paper-plane mr-2"></i>测试 PushDeer
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="flex justify-end">
@@ -3927,6 +4149,23 @@ ${DARK_MODE_SNIPPET}</head>
         document.getElementById('barkServer').value = config.BARK_SERVER || 'https://api.day.app';
         document.getElementById('barkDeviceKey').value = config.BARK_DEVICE_KEY || '';
         document.getElementById('barkIsArchive').checked = config.BARK_IS_ARCHIVE === 'true';
+        document.getElementById('dingtalkWebhook').value = config.DINGTALK_WEBHOOK || '';
+        document.getElementById('dingtalkSecret').value = config.DINGTALK_SECRET || '';
+        document.getElementById('feishuWebhook').value = config.FEISHU_WEBHOOK || '';
+        document.getElementById('feishuSecret').value = config.FEISHU_SECRET || '';
+        document.getElementById('serverchanSendKey').value = config.SERVERCHAN_SENDKEY || '';
+        document.getElementById('pushplusToken').value = config.PUSHPLUS_TOKEN || '';
+        document.getElementById('wxpusherAppToken').value = config.WXPUSHER_APP_TOKEN || '';
+        document.getElementById('wxpusherUid').value = config.WXPUSHER_UID || '';
+        document.getElementById('discordWebhook').value = config.DISCORD_WEBHOOK || '';
+        document.getElementById('slackWebhook').value = config.SLACK_WEBHOOK || '';
+        document.getElementById('ntfyServer').value = config.NTFY_SERVER || 'https://ntfy.sh';
+        document.getElementById('ntfyTopic').value = config.NTFY_TOPIC || '';
+        document.getElementById('ntfyToken').value = config.NTFY_TOKEN || '';
+        document.getElementById('pushoverToken').value = config.PUSHOVER_TOKEN || '';
+        document.getElementById('pushoverUser').value = config.PUSHOVER_USER || '';
+        document.getElementById('pushdeerServer').value = config.PUSHDEER_SERVER || 'https://api2.pushdeer.com';
+        document.getElementById('pushdeerKey').value = config.PUSHDEER_KEY || '';
         document.getElementById('thirdPartyToken').value = config.THIRD_PARTY_API_TOKEN || '';
         // 加载汇率配置（格式化为便于编辑的 JSON）
         const exchangeRatesInput = document.getElementById('exchangeRates');
@@ -4012,40 +4251,41 @@ ${DARK_MODE_SNIPPET}</head>
       timezoneSelect.value = selectedTimezone;
     }
     
-    function toggleNotificationConfigs(enabledNotifiers) {
-      const telegramConfig = document.getElementById('telegramConfig');
-      const notifyxConfig = document.getElementById('notifyxConfig');
-      const webhookConfig = document.getElementById('webhookConfig');
-      const wechatbotConfig = document.getElementById('wechatbotConfig');
-      const emailConfig = document.getElementById('emailConfig');
-      const barkConfig = document.getElementById('barkConfig');
+    // 渠道标识 → 配置区块 DOM ID 映射
+    const NOTIFIER_CONFIG_IDS = {
+      telegram: 'telegramConfig',
+      notifyx: 'notifyxConfig',
+      webhook: 'webhookConfig',
+      wechatbot: 'wechatbotConfig',
+      email: 'emailConfig',
+      bark: 'barkConfig',
+      dingtalk: 'dingtalkConfig',
+      feishu: 'feishuConfig',
+      serverchan: 'serverchanConfig',
+      pushplus: 'pushplusConfig',
+      wxpusher: 'wxpusherConfig',
+      discord: 'discordConfig',
+      slack: 'slackConfig',
+      ntfy: 'ntfyConfig',
+      pushover: 'pushoverConfig',
+      pushdeer: 'pushdeerConfig'
+    };
 
-      // 重置所有配置区域
-      [telegramConfig, notifyxConfig, webhookConfig, wechatbotConfig, emailConfig, barkConfig].forEach(config => {
-        config.classList.remove('active', 'inactive');
-        config.classList.add('inactive');
+    function toggleNotificationConfigs(enabledNotifiers) {
+      // 仅显示勾选启用的渠道配置框，其余隐藏
+      Object.values(NOTIFIER_CONFIG_IDS).forEach(id => {
+        const section = document.getElementById(id);
+        if (section) {
+          section.classList.add('inactive');
+          section.classList.remove('active');
+        }
       });
 
-      // 激活选中的配置区域
       enabledNotifiers.forEach(type => {
-        if (type === 'telegram') {
-          telegramConfig.classList.remove('inactive');
-          telegramConfig.classList.add('active');
-        } else if (type === 'notifyx') {
-          notifyxConfig.classList.remove('inactive');
-          notifyxConfig.classList.add('active');
-        } else if (type === 'webhook') {
-          webhookConfig.classList.remove('inactive');
-          webhookConfig.classList.add('active');
-        } else if (type === 'wechatbot') {
-          wechatbotConfig.classList.remove('inactive');
-          wechatbotConfig.classList.add('active');
-        } else if (type === 'email') {
-          emailConfig.classList.remove('inactive');
-          emailConfig.classList.add('active');
-        } else if (type === 'bark') {
-          barkConfig.classList.remove('inactive');
-          barkConfig.classList.add('active');
+        const section = document.getElementById(NOTIFIER_CONFIG_IDS[type]);
+        if (section) {
+          section.classList.remove('inactive');
+          section.classList.add('active');
         }
       });
     }
@@ -4090,6 +4330,23 @@ ${DARK_MODE_SNIPPET}</head>
         BARK_SERVER: document.getElementById('barkServer').value.trim() || 'https://api.day.app',
         BARK_DEVICE_KEY: document.getElementById('barkDeviceKey').value.trim(),
         BARK_IS_ARCHIVE: document.getElementById('barkIsArchive').checked.toString(),
+        DINGTALK_WEBHOOK: document.getElementById('dingtalkWebhook').value.trim(),
+        DINGTALK_SECRET: document.getElementById('dingtalkSecret').value.trim(),
+        FEISHU_WEBHOOK: document.getElementById('feishuWebhook').value.trim(),
+        FEISHU_SECRET: document.getElementById('feishuSecret').value.trim(),
+        SERVERCHAN_SENDKEY: document.getElementById('serverchanSendKey').value.trim(),
+        PUSHPLUS_TOKEN: document.getElementById('pushplusToken').value.trim(),
+        WXPUSHER_APP_TOKEN: document.getElementById('wxpusherAppToken').value.trim(),
+        WXPUSHER_UID: document.getElementById('wxpusherUid').value.trim(),
+        DISCORD_WEBHOOK: document.getElementById('discordWebhook').value.trim(),
+        SLACK_WEBHOOK: document.getElementById('slackWebhook').value.trim(),
+        NTFY_SERVER: document.getElementById('ntfyServer').value.trim() || 'https://ntfy.sh',
+        NTFY_TOPIC: document.getElementById('ntfyTopic').value.trim(),
+        NTFY_TOKEN: document.getElementById('ntfyToken').value.trim(),
+        PUSHOVER_TOKEN: document.getElementById('pushoverToken').value.trim(),
+        PUSHOVER_USER: document.getElementById('pushoverUser').value.trim(),
+        PUSHDEER_SERVER: document.getElementById('pushdeerServer').value.trim() || 'https://api2.pushdeer.com',
+        PUSHDEER_KEY: document.getElementById('pushdeerKey').value.trim(),
         ENABLED_NOTIFIERS: enabledNotifiers,
         TIMEZONE: document.getElementById('timezone').value.trim(),
         THIRD_PARTY_API_TOKEN: document.getElementById('thirdPartyToken').value.trim(),
@@ -4159,18 +4416,50 @@ ${DARK_MODE_SNIPPET}</head>
     });
     
     async function testNotification(type) {
-      const buttonId = type === 'telegram' ? 'testTelegramBtn' :
-                      type === 'notifyx' ? 'testNotifyXBtn' :
-                      type === 'wechatbot' ? 'testWechatBotBtn' :
-                      type === 'email' ? 'testEmailBtn' :
-                      type === 'bark' ? 'testBarkBtn' : 'testWebhookBtn';
+      const serviceNameMap = {
+        telegram: 'Telegram',
+        notifyx: 'NotifyX',
+        wechatbot: '企业微信机器人',
+        email: '邮件通知',
+        bark: 'Bark',
+        webhook: 'Webhook 通知',
+        dingtalk: '钉钉机器人',
+        feishu: '飞书机器人',
+        serverchan: 'Server酱',
+        pushplus: 'PushPlus',
+        wxpusher: 'WxPusher',
+        discord: 'Discord',
+        slack: 'Slack',
+        ntfy: 'ntfy',
+        pushover: 'Pushover',
+        pushdeer: 'PushDeer'
+      };
+      const buttonIdMap = {
+        telegram: 'testTelegramBtn',
+        notifyx: 'testNotifyXBtn',
+        wechatbot: 'testWechatBotBtn',
+        email: 'testEmailBtn',
+        bark: 'testBarkBtn',
+        webhook: 'testWebhookBtn',
+        dingtalk: 'testDingtalkBtn',
+        feishu: 'testFeishuBtn',
+        serverchan: 'testServerchanBtn',
+        pushplus: 'testPushplusBtn',
+        wxpusher: 'testWxpusherBtn',
+        discord: 'testDiscordBtn',
+        slack: 'testSlackBtn',
+        ntfy: 'testNtfyBtn',
+        pushover: 'testPushoverBtn',
+        pushdeer: 'testPushdeerBtn'
+      };
+      const buttonId = buttonIdMap[type] || 'test' + type.charAt(0).toUpperCase() + type.slice(1) + 'Btn';
       const button = document.getElementById(buttonId);
+      if (!button) {
+        console.error('未找到测试按钮:', buttonId);
+        return;
+      }
       const originalContent = button.innerHTML;
-      const serviceName = type === 'telegram' ? 'Telegram' :
-                          type === 'notifyx' ? 'NotifyX' :
-                          type === 'wechatbot' ? '企业微信机器人' :
-                          type === 'email' ? '邮件通知' :
-                          type === 'bark' ? 'Bark' : 'Webhook 通知';
+      const serviceName = serviceNameMap[type] || type;
 
       button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>测试中...';
       button.disabled = true;
@@ -4242,6 +4531,103 @@ ${DARK_MODE_SNIPPET}</head>
           button.disabled = false;
           return;
         }
+      } else if (type === 'dingtalk') {
+        config.DINGTALK_WEBHOOK = document.getElementById('dingtalkWebhook').value.trim();
+        config.DINGTALK_SECRET = document.getElementById('dingtalkSecret').value.trim();
+
+        if (!config.DINGTALK_WEBHOOK) {
+          showToast('请先填写钉钉机器人 Webhook URL', 'warning');
+          button.innerHTML = originalContent;
+          button.disabled = false;
+          return;
+        }
+      } else if (type === 'feishu') {
+        config.FEISHU_WEBHOOK = document.getElementById('feishuWebhook').value.trim();
+        config.FEISHU_SECRET = document.getElementById('feishuSecret').value.trim();
+
+        if (!config.FEISHU_WEBHOOK) {
+          showToast('请先填写飞书机器人 Webhook URL', 'warning');
+          button.innerHTML = originalContent;
+          button.disabled = false;
+          return;
+        }
+      } else if (type === 'serverchan') {
+        config.SERVERCHAN_SENDKEY = document.getElementById('serverchanSendKey').value.trim();
+
+        if (!config.SERVERCHAN_SENDKEY) {
+          showToast('请先填写 Server酱 SendKey', 'warning');
+          button.innerHTML = originalContent;
+          button.disabled = false;
+          return;
+        }
+      } else if (type === 'pushplus') {
+        config.PUSHPLUS_TOKEN = document.getElementById('pushplusToken').value.trim();
+
+        if (!config.PUSHPLUS_TOKEN) {
+          showToast('请先填写 PushPlus Token', 'warning');
+          button.innerHTML = originalContent;
+          button.disabled = false;
+          return;
+        }
+      } else if (type === 'wxpusher') {
+        config.WXPUSHER_APP_TOKEN = document.getElementById('wxpusherAppToken').value.trim();
+        config.WXPUSHER_UID = document.getElementById('wxpusherUid').value.trim();
+
+        if (!config.WXPUSHER_APP_TOKEN || !config.WXPUSHER_UID) {
+          showToast('请先填写 WxPusher AppToken 和用户 UID', 'warning');
+          button.innerHTML = originalContent;
+          button.disabled = false;
+          return;
+        }
+      } else if (type === 'discord') {
+        config.DISCORD_WEBHOOK = document.getElementById('discordWebhook').value.trim();
+
+        if (!config.DISCORD_WEBHOOK) {
+          showToast('请先填写 Discord Webhook URL', 'warning');
+          button.innerHTML = originalContent;
+          button.disabled = false;
+          return;
+        }
+      } else if (type === 'slack') {
+        config.SLACK_WEBHOOK = document.getElementById('slackWebhook').value.trim();
+
+        if (!config.SLACK_WEBHOOK) {
+          showToast('请先填写 Slack Incoming Webhook URL', 'warning');
+          button.innerHTML = originalContent;
+          button.disabled = false;
+          return;
+        }
+      } else if (type === 'ntfy') {
+        config.NTFY_SERVER = document.getElementById('ntfyServer').value.trim() || 'https://ntfy.sh';
+        config.NTFY_TOPIC = document.getElementById('ntfyTopic').value.trim();
+        config.NTFY_TOKEN = document.getElementById('ntfyToken').value.trim();
+
+        if (!config.NTFY_TOPIC) {
+          showToast('请先填写 ntfy Topic', 'warning');
+          button.innerHTML = originalContent;
+          button.disabled = false;
+          return;
+        }
+      } else if (type === 'pushover') {
+        config.PUSHOVER_TOKEN = document.getElementById('pushoverToken').value.trim();
+        config.PUSHOVER_USER = document.getElementById('pushoverUser').value.trim();
+
+        if (!config.PUSHOVER_TOKEN || !config.PUSHOVER_USER) {
+          showToast('请先填写 Pushover API Token 和 User Key', 'warning');
+          button.innerHTML = originalContent;
+          button.disabled = false;
+          return;
+        }
+      } else if (type === 'pushdeer') {
+        config.PUSHDEER_SERVER = document.getElementById('pushdeerServer').value.trim() || 'https://api2.pushdeer.com';
+        config.PUSHDEER_KEY = document.getElementById('pushdeerKey').value.trim();
+
+        if (!config.PUSHDEER_KEY) {
+          showToast('请先填写 PushDeer Push Key', 'warning');
+          button.innerHTML = originalContent;
+          button.disabled = false;
+          return;
+        }
       }
 
       try {
@@ -4289,6 +4675,46 @@ ${DARK_MODE_SNIPPET}</head>
 
     document.getElementById('testBarkBtn').addEventListener('click', () => {
       testNotification('bark');
+    });
+
+    document.getElementById('testDingtalkBtn').addEventListener('click', () => {
+      testNotification('dingtalk');
+    });
+
+    document.getElementById('testFeishuBtn').addEventListener('click', () => {
+      testNotification('feishu');
+    });
+
+    document.getElementById('testServerchanBtn').addEventListener('click', () => {
+      testNotification('serverchan');
+    });
+
+    document.getElementById('testPushplusBtn').addEventListener('click', () => {
+      testNotification('pushplus');
+    });
+
+    document.getElementById('testWxpusherBtn').addEventListener('click', () => {
+      testNotification('wxpusher');
+    });
+
+    document.getElementById('testDiscordBtn').addEventListener('click', () => {
+      testNotification('discord');
+    });
+
+    document.getElementById('testSlackBtn').addEventListener('click', () => {
+      testNotification('slack');
+    });
+
+    document.getElementById('testNtfyBtn').addEventListener('click', () => {
+      testNotification('ntfy');
+    });
+
+    document.getElementById('testPushoverBtn').addEventListener('click', () => {
+      testNotification('pushover');
+    });
+
+    document.getElementById('testPushdeerBtn').addEventListener('click', () => {
+      testNotification('pushdeer');
     });
 
     document.getElementById('generateThirdPartyToken').addEventListener('click', () => {
