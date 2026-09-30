@@ -459,11 +459,13 @@ const api = {
         const timezone = config?.TIMEZONE || 'UTC';
         const exchangeRates = parseExchangeRates(config.EXCHANGE_RATES);
         const period = url.searchParams.get('period') === '12m' ? '12m' : 'year';
+        const daysParam = Number(url.searchParams.get('days'));
+        const upcomingDays = [3, 7, 30, 60, 180].includes(daysParam) ? daysParam : 7;
 
         const monthlyExpense = calculateMonthlyExpense(subscriptions, timezone, exchangeRates);
         const yearlyExpense = calculateYearlyExpense(subscriptions, timezone, exchangeRates);
         const recentPayments = getRecentPayments(subscriptions, timezone, exchangeRates);
-        const upcomingRenewals = getUpcomingRenewals(subscriptions, timezone, exchangeRates);
+        const upcomingRenewals = getUpcomingRenewals(subscriptions, timezone, exchangeRates, upcomingDays);
         const expenseByType = getExpenseByType(subscriptions, timezone, exchangeRates, period);
         const expenseByCategory = getExpenseByCategory(subscriptions, timezone, exchangeRates, period);
         const monthlyTrend = getMonthlyExpenseTrend(subscriptions, timezone, exchangeRates);

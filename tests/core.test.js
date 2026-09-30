@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { lunarCalendar, lunarBiz } from '../src/lunar.js';
 import { resolveReminderSetting, shouldTriggerReminder } from '../src/reminder.js';
 import { getCurrentTimeInTimezone, getTimezoneDateParts, formatTimeInTimezone } from '../src/timezone.js';
-import { convertToCNY, DEFAULT_EXCHANGE_RATES, getMonthlyExpenseTrend, getCurrencyDistribution, getMonthlyBreakdown, getNextExpiry, getExpenseByType } from '../src/dashboard.js';
+import { convertToCNY, DEFAULT_EXCHANGE_RATES, getMonthlyExpenseTrend, getCurrencyDistribution, getMonthlyBreakdown, getNextExpiry, getExpenseByType, getUpcomingRenewals } from '../src/dashboard.js';
 import { buildCalendarICS } from '../src/ics.js';
 import { hashPassword, verifyPassword, isPasswordHash, generateJWT, verifyJWT } from '../src/auth.js';
 import { parseWebdavPropfindXml, normalizeWebdavUrl, buildWebdavDirUrl, normalizeWebdavDirName } from '../src/api.js';
@@ -283,6 +283,25 @@ test('getNextExpiry：返回最近到期的活跃订阅，排除已过期', () =
 test('getNextExpiry：无有效到期日返回 null', () => {
   assert.equal(getNextExpiry([makeSub({ expiryDate: '2020-01-01T00:00:00Z' })], 'UTC'), null);
   assert.equal(getNextExpiry([], 'UTC'), null);
+});
+
+test('getUpcomingRenewals：时间窗口可选 3/7/30/60/180 天', () => {
+  const now = nowUTC();
+  const subs = [
+    makeSub({ name: '两天后', expiryDate: new Date(now.getTime() + 2 * 24 * 3600 * 1000).toISOString() }),
+    makeSub({ name: '十天后', expiryDate: new Date(now.getTime() + 10 * 24 * 3600 * 1000).toISOString() }),
+    makeSub({ name: '一百天后', expiryDate: new Date(now.getTime() + 100 * 24 * 3600 * 1000).toISOString() }),
+    makeSub({ name: '停用', isActive: false, expiryDate: new Date(now.getTime() + 2 * 24 * 3600 * 1000).toISOString() })
+  ];
+  const in3 = getUpcomingRenewals(subs, 'UTC', undefined, 3);
+  assert.deepEqual(in3.map(s => s.name), ['两天后']);
+  const in30 = getUpcomingRenewals(subs, 'UTC', undefined, 30);
+  assert.deepEqual(in30.map(s => s.name), ['两天后', '十天后']);
+  const in180 = getUpcomingRenewals(subs, 'UTC', undefined, 180);
+  assert.deepEqual(in180.map(s => s.name), ['两天后', '十天后', '一百天后']);
+  // 非法窗口回退 7 天
+  const fallback = getUpcomingRenewals(subs, 'UTC', undefined, 999);
+  assert.deepEqual(fallback.map(s => s.name), ['两天后']);
 });
 
 test('getExpenseByType：period=year 与 12m 均计入当月支付，忽略过期支付', () => {

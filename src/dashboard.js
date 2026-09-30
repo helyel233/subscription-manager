@@ -132,15 +132,17 @@ function getRecentPayments(subscriptions, timezone, rates = DEFAULT_EXCHANGE_RAT
   return recentPayments.sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate));
 }
 
-function getUpcomingRenewals(subscriptions, timezone, rates = DEFAULT_EXCHANGE_RATES) {
+function getUpcomingRenewals(subscriptions, timezone, rates = DEFAULT_EXCHANGE_RATES, days = 7) {
+  // 时间窗口可选：3/7/30/60/180 天，非法值回退 7 天
+  const windowDays = [3, 7, 30, 60, 180].includes(Number(days)) ? Number(days) : 7;
   const now = getCurrentTimeInTimezone(timezone);
-  const sevenDaysLater = new Date(now.getTime() + 7 * MS_PER_DAY);
+  const rangeEnd = new Date(now.getTime() + windowDays * MS_PER_DAY);
 
   return subscriptions
     .filter(sub => {
       if (!sub.isActive) return false;
       const renewalDate = new Date(sub.expiryDate);
-      return renewalDate >= now && renewalDate <= sevenDaysLater;
+      return renewalDate >= now && renewalDate <= rangeEnd;
     })
     .map(sub => {
       const renewalDate = new Date(sub.expiryDate);

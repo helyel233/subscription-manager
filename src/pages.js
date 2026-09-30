@@ -5192,9 +5192,6 @@ ${DARK_MODE_SNIPPET}</head>
         <p class="text-sm text-gray-500 mt-1">订阅费用和活动概览（统计金额已折合为 CNY）</p>
       </div>
       <div class="flex items-center gap-2 relative">
-        <a href="/api/export" target="_blank" class="btn-secondary text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap">
-          <i class="fas fa-file-export mr-1"></i>导出备份
-        </a>
         <button type="button" id="cardSettingsBtn" class="btn-primary text-white px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap">
           <i class="fas fa-th-large mr-1"></i>编辑卡片
         </button>
@@ -5259,7 +5256,13 @@ ${DARK_MODE_SNIPPET}</head>
           <i class="fas fa-clock text-yellow-500"></i>
           <h3 class="text-lg font-medium text-gray-900">即将续费</h3>
         </div>
-        <span class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">未来7天</span>
+        <select id="upcomingDays" class="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white">
+                  <option value="3">未来3天</option>
+                  <option value="7" selected>未来7天</option>
+                  <option value="30">未来30天</option>
+                  <option value="60">未来60天</option>
+                  <option value="180">未来180天</option>
+                </select>
       </div>
       <div class="p-6" id="upcomingRenewals">
         <div class="loading-skeleton"></div>
@@ -5316,6 +5319,7 @@ ${DARK_MODE_SNIPPET}</head>
     };
     let dashboardCards = {};
     let dashboardPeriod = 'year';
+    let upcomingDays = 7;
 
     function applyCardVisibility() {
       let rankingsVisible = false;
@@ -5472,7 +5476,7 @@ ${DARK_MODE_SNIPPET}</head>
 
     async function loadDashboardData(){
       try {
-        const r=await fetch('/api/dashboard/stats' + (dashboardPeriod === '12m' ? '?period=12m' : ''));
+        const r=await fetch('/api/dashboard/stats?days=' + upcomingDays + (dashboardPeriod === '12m' ? '&period=12m' : ''));
         const d=await r.json();
         if(!d.success) throw new Error(d.message||'加载失败');
         
@@ -5497,7 +5501,7 @@ ${DARK_MODE_SNIPPET}</head>
         \`).join('');
         
         const ur=document.getElementById('upcomingRenewals');
-        if (ur) ur.innerHTML=data.upcomingRenewals.length===0?'<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-text">未来7天内没有即将续费的订阅</div></div>':
+        if (ur) ur.innerHTML=data.upcomingRenewals.length===0?'<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-text">未来'+upcomingDays+'天内没有即将续费的订阅</div></div>':
         data.upcomingRenewals.map(s=>\`
           <div class="list-item">
             <div class="list-item-content">
@@ -5562,6 +5566,15 @@ ${DARK_MODE_SNIPPET}</head>
     if (rankingPeriodSelect) {
       rankingPeriodSelect.addEventListener('change', () => {
         dashboardPeriod = rankingPeriodSelect.value;
+        loadDashboardData();
+      });
+    }
+
+    // 即将续费时间窗口切换
+    const upcomingDaysSelect = document.getElementById('upcomingDays');
+    if (upcomingDaysSelect) {
+      upcomingDaysSelect.addEventListener('change', () => {
+        upcomingDays = Number(upcomingDaysSelect.value) || 7;
         loadDashboardData();
       });
     }
